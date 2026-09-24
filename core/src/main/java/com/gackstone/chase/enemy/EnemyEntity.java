@@ -36,6 +36,10 @@ public class EnemyEntity implements ICollidable {
     private CarDefinition carDefinition;
     private ModelInstance modelInstance;
 
+    private float sirenTimer = 0.0f;
+    private com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute sirenRedAttr;
+    private com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute sirenBlueAttr;
+
     public EnemyEntity(ModelRegistry modelRegistry, CarDefinition carDefinition) {
         this.modelRegistry = modelRegistry;
         this.carDefinition = carDefinition;
@@ -43,13 +47,36 @@ public class EnemyEntity implements ICollidable {
         // Load 3D model from registry (no ModelBuilder.createBox)
         if (modelRegistry != null && carDefinition != null) {
             this.modelInstance = modelRegistry.createInstance(carDefinition.getModelKey());
+            initSirenAttributes();
         }
 
         updateBoundingBox();
     }
 
+    private void initSirenAttributes() {
+        if (modelInstance == null) return;
+        com.badlogic.gdx.graphics.g3d.Material redMat = modelInstance.getMaterial("siren_red");
+        if (redMat != null) {
+            sirenRedAttr = (com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute) redMat.get(com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute.Emissive);
+        }
+        com.badlogic.gdx.graphics.g3d.Material blueMat = modelInstance.getMaterial("siren_blue");
+        if (blueMat != null) {
+            sirenBlueAttr = (com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute) blueMat.get(com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute.Emissive);
+        }
+    }
+
     public void update(float delta) {
         if (!active) return;
+
+        // Strobe siren lightbars (alternating red / blue)
+        sirenTimer += delta * 14.0f;
+        boolean redActive = ((int) sirenTimer) % 2 == 0;
+        if (sirenRedAttr != null) {
+            sirenRedAttr.color.set(redActive ? com.badlogic.gdx.graphics.Color.RED : com.badlogic.gdx.graphics.Color.BLACK);
+        }
+        if (sirenBlueAttr != null) {
+            sirenBlueAttr.color.set(redActive ? com.badlogic.gdx.graphics.Color.BLACK : com.badlogic.gdx.graphics.Color.CYAN);
+        }
 
         if (modelInstance != null) {
             modelInstance.transform.idt();

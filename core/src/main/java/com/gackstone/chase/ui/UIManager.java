@@ -6,6 +6,8 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.NinePatch;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Slider;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
@@ -107,6 +109,44 @@ public class UIManager implements Disposable {
         sliderStyle.knob.setMinWidth(14);
         sliderStyle.background.setMinHeight(8);
         skin.add("default-horizontal", sliderStyle);
+
+        // 6. ScrollPane Styles
+        Pixmap pixScrollTrack = new Pixmap(8, 16, Pixmap.Format.RGBA8888);
+        pixScrollTrack.setColor(0.08f, 0.10f, 0.16f, 0.85f);
+        pixScrollTrack.fill();
+        pixScrollTrack.setColor(0.18f, 0.22f, 0.32f, 0.9f);
+        pixScrollTrack.drawRectangle(0, 0, 8, 16);
+        Texture texScrollTrack = new Texture(pixScrollTrack);
+        pixScrollTrack.dispose();
+
+        Pixmap pixScrollKnob = new Pixmap(8, 16, Pixmap.Format.RGBA8888);
+        pixScrollKnob.setColor(0.0f, 0.85f, 1.0f, 0.95f);
+        pixScrollKnob.fill();
+        Texture texScrollKnob = new Texture(pixScrollKnob);
+        pixScrollKnob.dispose();
+
+        ScrollPane.ScrollPaneStyle scrollStyle = new ScrollPane.ScrollPaneStyle();
+        scrollStyle.vScroll = new TextureRegionDrawable(texScrollTrack);
+        scrollStyle.vScrollKnob = new TextureRegionDrawable(texScrollKnob);
+        scrollStyle.hScroll = new TextureRegionDrawable(texScrollTrack);
+        scrollStyle.hScrollKnob = new TextureRegionDrawable(texScrollKnob);
+        skin.add("default", scrollStyle);
+
+        // 7. ProgressBar Styles (Stat bars & loading bars)
+        Pixmap pixProgressBg = new Pixmap(16, 16, Pixmap.Format.RGBA8888);
+        pixProgressBg.setColor(0.10f, 0.12f, 0.18f, 0.95f);
+        pixProgressBg.fill();
+        pixProgressBg.setColor(0.25f, 0.30f, 0.40f, 0.8f);
+        pixProgressBg.drawRectangle(0, 0, 16, 16);
+        Texture texProgressBg = new Texture(pixProgressBg);
+        pixProgressBg.dispose();
+
+        ProgressBar.ProgressBarStyle progressBarStyle = new ProgressBar.ProgressBarStyle();
+        progressBarStyle.background = new TextureRegionDrawable(texProgressBg);
+        progressBarStyle.knobBefore = new TextureRegionDrawable(texWhite);
+        progressBarStyle.knob = new TextureRegionDrawable(texWhite);
+        skin.add("default-horizontal", progressBarStyle);
+        skin.add("default", progressBarStyle);
     }
 
     public Skin getSkin() {

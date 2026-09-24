@@ -16,6 +16,7 @@ import com.gackstone.chase.camera.CameraMode;
 import com.gackstone.chase.core.GameConfig;
 import com.gackstone.chase.core.GameManager;
 import com.gackstone.chase.core.GameState;
+import com.gackstone.chase.input.TouchGestureController;
 import com.gackstone.chase.player.PlayerState;
 
 /**
@@ -100,7 +101,43 @@ public class GameHUDScreen implements Disposable {
         root.add(camModeLabel).colspan(2).right().padTop(2).padRight(4).row();
 
         // Warning banner
-        root.add(warningLabel).colspan(2).center().padTop(30).row();
+        root.add(warningLabel).colspan(2).center().padTop(30).expandY().row();
+
+        // ── Bottom Mobile Action Buttons (NOS / DODGE) ────────────────────────
+        Table bottomControls = new Table();
+        TextButton dodgeBtn = new TextButton("DODGE", game.getUiManager().getSkin());
+        TextButton nosBtn   = new TextButton("NITRO >>", game.getUiManager().getSkin());
+
+        dodgeBtn.addListener(new ChangeListener() {
+            @Override public void changed(ChangeEvent e, Actor a) {
+                if (gameManager != null && gameManager.getPlayerController() != null
+                        && gameManager.getPlayerController().getInputController() instanceof TouchGestureController) {
+                    ((TouchGestureController) gameManager.getPlayerController().getInputController()).triggerDodge();
+                }
+            }
+        });
+
+        nosBtn.addListener(new com.badlogic.gdx.scenes.scene2d.InputListener() {
+            @Override public boolean touchDown(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y, int pointer, int button) {
+                if (gameManager != null && gameManager.getPlayerController() != null
+                        && gameManager.getPlayerController().getInputController() instanceof TouchGestureController) {
+                    ((TouchGestureController) gameManager.getPlayerController().getInputController()).setThrottleInput(1.0f);
+                }
+                return true;
+            }
+            @Override public void touchUp(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y, int pointer, int button) {
+                if (gameManager != null && gameManager.getPlayerController() != null
+                        && gameManager.getPlayerController().getInputController() instanceof TouchGestureController) {
+                    ((TouchGestureController) gameManager.getPlayerController().getInputController()).setThrottleInput(0.0f);
+                }
+            }
+        });
+
+        bottomControls.add(dodgeBtn).size(130, 52).left();
+        bottomControls.add().expandX();
+        bottomControls.add(nosBtn).size(150, 52).right();
+
+        root.add(bottomControls).colspan(2).fillX().padBottom(12);
     }
 
     public void update(float delta) {

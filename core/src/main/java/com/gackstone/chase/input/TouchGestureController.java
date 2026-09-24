@@ -76,7 +76,7 @@ public class TouchGestureController extends InputAdapter implements IInputContro
 
     @Override
     public void update(float delta) {
-        // Keyboard fallback for development testing
+        // Keyboard controls
         float keyboardSteer = 0.0f;
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.A)) {
             keyboardSteer -= 1.0f;
@@ -86,6 +86,14 @@ public class TouchGestureController extends InputAdapter implements IInputContro
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
             dodgeTriggered = true;
+        }
+
+        // Keyboard throttle / Nitro boost
+        if (Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.W) ||
+            Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
+            throttleInput = 1.0f;
+        } else if (!isTouching) {
+            throttleInput = 0.0f;
         }
 
         if (keyboardSteer != 0.0f) {
@@ -108,9 +116,17 @@ public class TouchGestureController extends InputAdapter implements IInputContro
         return throttleInput;
     }
 
+    public void setThrottleInput(float throttleInput) {
+        this.throttleInput = throttleInput;
+    }
+
     @Override
     public boolean isDodgeTriggered() {
         return dodgeTriggered;
+    }
+
+    public void triggerDodge() {
+        this.dodgeTriggered = true;
     }
 
     @Override

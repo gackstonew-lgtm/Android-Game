@@ -19,7 +19,7 @@ import com.gackstone.chase.player.PlayerEntity;
  * <p><b>Zero-allocation hot path</b>: {@code desiredPosition} and {@code currentLookTarget}
  * are pre-allocated and reused every frame.
  */
-public class ChaseCamera {
+public class ChaseCamera implements com.gackstone.chase.core.GameEvents.GameEventListener {
 
     private final PerspectiveCamera camera;
     private final PlayerEntity targetPlayer;
@@ -28,6 +28,9 @@ public class ChaseCamera {
     private final Vector3 desiredPosition   = new Vector3();
     private final Vector3 currentLookTarget = new Vector3();
     private final Vector3 tmpVec            = new Vector3();
+
+    // ── Screen Shake & Trauma ────────────────────────────────────────────────
+    private float shakeTrauma = 0.0f;
 
     // ── Tunable parameters ────────────────────────────────────────────────────
     private float cameraDistance  = GameConfig.CAMERA_DISTANCE;
@@ -51,7 +54,27 @@ public class ChaseCamera {
         camera = new PerspectiveCamera(GameConfig.CAMERA_FOV, viewportWidth, viewportHeight);
         camera.near = GameConfig.CAMERA_NEAR;
         camera.far  = GameConfig.CAMERA_FAR;
+        com.gackstone.chase.core.GameEvents.addListener(this);
         reset();
+    }
+
+    public void addShake(float trauma) {
+        shakeTrauma = MathUtils.clamp(shakeTrauma + trauma, 0.0f, 1.0f);
+    }
+
+    @Override
+    public void onPlayerDamaged(float currentHealth, float damageAmount) {
+        addShake(0.45f);
+    }
+
+    @Override
+    public void onObstacleHit(float damage) {
+        addShake(0.35f);
+    }
+
+    @Override
+    public void onPlayerCaught(float finalDistance, long finalScore) {
+        addShake(0.85f);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -85,6 +108,15 @@ public class ChaseCamera {
             case CHASE:   updateChase(delta, playerPos, steerInput);   break;
             case HOOD:    updateHood(delta, playerPos, bankAngle);      break;
             case COCKPIT: updateCockpit(delta, playerPos, bankAngle);   break;
+        }
+
+        // Apply screen shake trauma
+        if (shakeTrauma > 0.0f) {
+            float shakeMagnitude = shakeTrauma * shakeTrauma * 0.45f;
+            float shakeX = (MathUtils.random() * 2.0f - 1.0f) * shakeMagnitude;
+            float shakeY = (MathUtils.random() * 2.0f - 1.0f) * shakeMagnitude;
+            camera.position.add(shakeX, shakeY, 0);
+            shakeTrauma = Math.max(0.0f, shakeTrauma - delta * 1.8f);
         }
 
         camera.up.set(Vector3.Y);

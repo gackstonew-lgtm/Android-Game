@@ -36,22 +36,38 @@ public class PlayerController {
         float accelRate = car != null ? car.getAcceleration() * 0.1f : GameConfig.PLAYER_FORWARD_ACCELERATION;
         float handlingRate = car != null ? car.getHandling() : GameConfig.PLAYER_LATERAL_SPEED;
 
-        // 1. Process forward acceleration
-        if (state.getForwardSpeed() < maxSpeed) {
-            float newSpeed = state.getForwardSpeed() + (accelRate * delta);
-            state.setForwardSpeed(Math.min(newSpeed, maxSpeed));
-        }
-
-        // 2. Lateral steering from input
+        // 1. Process forward acceleration & Nitro Boost
+        boolean wantsBoost = false;
         float steer = 0.0f;
         if (inputController != null) {
             inputController.update(delta);
             steer = inputController.getSteerInput();
+            wantsBoost = inputController.getThrottleInput() > 0.1f;
 
             // Check for emergency dodge
             if (inputController.isDodgeTriggered()) {
-                steer *= 1.8f;
+                steer *= 2.0f;
                 inputController.resetTriggers();
+            }
+        }
+
+        if (wantsBoost && state.getNitroAmount() > 0.0f) {
+            state.setBoosting(true);
+            state.setNitroAmount(Math.max(0.0f, state.getNitroAmount() - delta * 35.0f));
+            float boostMaxSpeed = maxSpeed * 1.25f;
+            float boostAccelRate = accelRate * 2.5f;
+            if (state.getForwardSpeed() < boostMaxSpeed) {
+                float newSpeed = state.getForwardSpeed() + (boostAccelRate * delta);
+                state.setForwardSpeed(Math.min(newSpeed, boostMaxSpeed));
+            }
+        } else {
+            state.setBoosting(false);
+            if (state.getForwardSpeed() < maxSpeed) {
+                float newSpeed = state.getForwardSpeed() + (accelRate * delta);
+                state.setForwardSpeed(Math.min(newSpeed, maxSpeed));
+            } else if (state.getForwardSpeed() > maxSpeed) {
+                float decayedSpeed = state.getForwardSpeed() - (accelRate * 1.8f * delta);
+                state.setForwardSpeed(Math.max(decayedSpeed, maxSpeed));
             }
         }
 
