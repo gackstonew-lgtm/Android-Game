@@ -1,0 +1,50 @@
+[
+  {
+    "id": "env_neon_city",
+    "name": "Neon Metropolis",
+    "description": "High-density cyber cityscape bathed in deep night, glowing billboards, and wet asphalt reflections.",
+    "ambientColor": "#2A334A",
+    "directionalColor": "#7EB3FF",
+    "lightDirection": [-0.35, -0.85, 0.4],
+    "fogColor": "#0D111A",
+    "fogNear": 25.0,
+    "fogFar": 170.0,
+    "roadColor": "#151821",
+    "roadMarkingColor": "#00E5FF",
+    "railColor": "#FF0055",
+    "terrainColor": "#080A10",
+    "buildingThemes": ["SKYSCRAPER", "COMMERCIAL", "NEON_BILLBOARD"]
+  },
+  {
+    "id": "env_desert_canyon",
+    "name": "Dustfall Canyon",
+    "description": "Arid desert highway surrounded by jagged mesas, scorched sand dunes, and blazing sunset radiance.",
+    "ambientColor": "#6E4532",
+    "directionalColor": "#FFA24B",
+    "lightDirection": [-0.6, -0.6, 0.52],
+    "fogColor": "#4A2A1A",
+    "fogNear": 35.0,
+    "fogFar": 220.0,
+    "roadColor": "#302620",
+    "roadMarkingColor": "#FFD166",
+    "railColor": "#D06A3B",
+    "terrainColor": "#8C4F2B",
+    "buildingThemes": ["ROCK_MESA", "CACTUS", "WATCHTOWER"]
+  },
+  {
+    "id": "env_industrial_docks",
+    "name": "Industrial Port",
+    "description": "Heavy industrial port district filled with shipping crates, cranes, chemical tanks, and moody overcast lighting.",
+    "ambientColor": "#35403D",
+    "directionalColor": "#99B2A8",
+    "lightDirection": [-0.4, -0.9, 0.3],
+    "fogColor": "#182220",
+    "fogNear": 20.0,
+    "fogFar": 160.0,
+    "roadColor": "#202524",
+    "roadMarkingColor": "#E2E8F0",
+    "railColor": "#E76F51",
+    "terrainColor": "#111817",
+    "buildingThemes": ["CONTAINER_STACK", "FACTORY", "FLOODLIGHT"]
+  }
+]

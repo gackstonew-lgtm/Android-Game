@@ -1,146 +1,109 @@
 package com.gackstone.chase.enemy;
 
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.VertexAttributes;
-import com.badlogic.gdx.graphics.g3d.Material;
-import com.badlogic.gdx.graphics.g3d.Model;
+import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
-import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
-import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
+import com.gackstone.chase.assets.ModelRegistry;
+import com.gackstone.chase.cars.CarDefinition;
 import com.gackstone.chase.physics.CollisionLayer;
 import com.gackstone.chase.physics.ICollidable;
 
 /**
  * 3D Physical Chaser entity pursuing the Player.
+ * Loaded from ModelRegistry; no procedural boxes.
  */
 public class EnemyEntity implements ICollidable {
 
-    public static final float BODY_WIDTH = 1.6f;
+    /** Half-extents used for AABB collision (based on a typical patrol cruiser). */
+    public static final float BODY_WIDTH  = 1.6f;
     public static final float BODY_HEIGHT = 0.9f;
-    public static final float BODY_LENGTH = 3.0f;
+    public static final float BODY_LENGTH = 3.2f;
 
+    private final ModelRegistry modelRegistry;
     private final Vector3 position = new Vector3(0, 0.45f, -20.0f);
     private final Vector3 velocity = new Vector3();
     private final BoundingBox boundingBox = new BoundingBox();
-    
+
+    /** Visual tilt while turning (mirrors player banking logic). */
+    private float bankAngle = 0.0f;
+
     private ChaseAIState aiState = ChaseAIState.CHASING;
     private float chaseSpeed = 24.0f;
     private boolean active = true;
 
-    private Model model;
+    private CarDefinition carDefinition;
     private ModelInstance modelInstance;
-    private boolean isDisposed = false;
 
-    public EnemyEntity() {
-        createProceduralModel();
+    public EnemyEntity(ModelRegistry modelRegistry, CarDefinition carDefinition) {
+        this.modelRegistry = modelRegistry;
+        this.carDefinition = carDefinition;
+
+        // Load 3D model from registry (no ModelBuilder.createBox)
+        if (modelRegistry != null && carDefinition != null) {
+            this.modelInstance = modelRegistry.createInstance(carDefinition.getModelKey());
+        }
+
         updateBoundingBox();
-    }
-
-    private void createProceduralModel() {
-        ModelBuilder modelBuilder = new ModelBuilder();
-        // Stylized aggressive crimson pursuer body
-        Material enemyMat = new Material(
-            ColorAttribute.createDiffuse(new Color(1.0f, 0.15f, 0.2f, 1.0f)),
-            ColorAttribute.createSpecular(Color.RED)
-        );
-
-        model = modelBuilder.createBox(
-            BODY_WIDTH, BODY_HEIGHT, BODY_LENGTH,
-            enemyMat,
-            VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal
-        );
-        modelInstance = new ModelInstance(model);
-        modelInstance.transform.setToTranslation(position);
     }
 
     public void update(float delta) {
         if (!active) return;
 
-        modelInstance.transform.idt();
-        modelInstance.transform.setToTranslation(position);
+        if (modelInstance != null) {
+            modelInstance.transform.idt();
+            modelInstance.transform.setToTranslation(position);
+            if (bankAngle != 0) {
+                modelInstance.transform.rotate(Vector3.Z, bankAngle);
+            }
+        }
         updateBoundingBox();
     }
 
     private void updateBoundingBox() {
         boundingBox.set(
-            new Vector3(position.x - BODY_WIDTH * 0.5f, position.y - BODY_HEIGHT * 0.5f, position.z - BODY_LENGTH * 0.5f),
-            new Vector3(position.x + BODY_WIDTH * 0.5f, position.y + BODY_HEIGHT * 0.5f, position.z + BODY_LENGTH * 0.5f)
+            new Vector3(position.x - BODY_WIDTH * 0.5f,  position.y - BODY_HEIGHT * 0.5f, position.z - BODY_LENGTH * 0.5f),
+            new Vector3(position.x + BODY_WIDTH * 0.5f,  position.y + BODY_HEIGHT * 0.5f, position.z + BODY_LENGTH * 0.5f)
         );
     }
 
-    public void render(ModelBatch modelBatch) {
+    public void render(ModelBatch batch, Environment environment) {
         if (active && modelInstance != null) {
-            modelBatch.render(modelInstance);
+            batch.render(modelInstance, environment);
         }
     }
 
-    @Override
-    public BoundingBox getBoundingBox() {
-        return boundingBox;
-    }
-
-    @Override
-    public CollisionLayer getCollisionLayer() {
-        return CollisionLayer.ENEMY;
-    }
-
-    @Override
-    public boolean isCollisionActive() {
-        return active && aiState != ChaseAIState.DISABLED;
-    }
-
-    @Override
-    public void onCollision(ICollidable other) {
-        // Handled in player and world collision resolutions
-    }
+    @Override public BoundingBox getBoundingBox() { return boundingBox; }
+    @Override public CollisionLayer getCollisionLayer() { return CollisionLayer.ENEMY; }
+    @Override public boolean isCollisionActive() { return active && aiState != ChaseAIState.DISABLED; }
+    @Override public void onCollision(ICollidable other) { /* handled by PlayerEntity */ }
 
     public void reset(Vector3 spawnPosition) {
         position.set(spawnPosition);
         velocity.set(0, 0, 0);
         aiState = ChaseAIState.CHASING;
         active = true;
+        bankAngle = 0;
+        chaseSpeed = carDefinition != null ? carDefinition.getMaxSpeed() * 0.45f : 24.0f;
         update(0);
     }
 
+    /** Dispose is intentionally lightweight – model data lives in ModelRegistry. */
     public void dispose() {
-        if (!isDisposed && model != null) {
-            model.dispose();
-            isDisposed = true;
-        }
+        modelInstance = null;
     }
 
-    public Vector3 getPosition() {
-        return position;
-    }
-
-    public Vector3 getVelocity() {
-        return velocity;
-    }
-
-    public ChaseAIState getAiState() {
-        return aiState;
-    }
-
-    public void setAiState(ChaseAIState aiState) {
-        this.aiState = aiState;
-    }
-
-    public float getChaseSpeed() {
-        return chaseSpeed;
-    }
-
-    public void setChaseSpeed(float chaseSpeed) {
-        this.chaseSpeed = chaseSpeed;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
+    // ── Getters / Setters ──────────────────────────────────────────────────
+    public Vector3 getPosition()            { return position; }
+    public Vector3 getVelocity()            { return velocity; }
+    public ChaseAIState getAiState()        { return aiState; }
+    public void setAiState(ChaseAIState s)  { this.aiState = s; }
+    public float getChaseSpeed()            { return chaseSpeed; }
+    public void setChaseSpeed(float speed)  { this.chaseSpeed = speed; }
+    public float getBankAngle()             { return bankAngle; }
+    public void setBankAngle(float angle)   { this.bankAngle = angle; }
+    public boolean isActive()               { return active; }
+    public void setActive(boolean active)   { this.active = active; }
+    public CarDefinition getCarDefinition() { return carDefinition; }
 }

@@ -16,15 +16,16 @@ import com.gackstone.chase.core.GameConfig;
 import com.gackstone.chase.core.GameState;
 
 /**
- * Main Menu Screen offering PLAY, SETTINGS, EXIT, and highest score statistics.
+ * Main Menu Screen offering PLAY → GARAGE → SETTINGS → EXIT navigation,
+ * plus best score and distance statistics.
  */
 public class MainMenuScreen extends ScreenAdapter {
 
     private final ChaseGame game;
-    private final Stage stage;
+    private final Stage     stage;
 
     public MainMenuScreen(ChaseGame game) {
-        this.game = game;
+        this.game  = game;
         this.stage = new Stage(new ExtendViewport(GameConfig.VIRTUAL_WIDTH, GameConfig.VIRTUAL_HEIGHT));
     }
 
@@ -33,81 +34,68 @@ public class MainMenuScreen extends ScreenAdapter {
         Gdx.input.setInputProcessor(stage);
         stage.clear();
 
-        Table rootTable = new Table();
-        rootTable.setFillParent(true);
-        stage.addActor(rootTable);
+        Table root = new Table();
+        root.setFillParent(true);
+        stage.addActor(root);
 
-        // Title
-        Label titleLabel = new Label("CHASE", game.getUiManager().getSkin(), "title");
+        Label titleLabel    = new Label("CHASE", game.getUiManager().getSkin(), "title");
         Label subtitleLabel = new Label("HIGH SPEED 3D PURSUIT", game.getUiManager().getSkin(), "default");
 
-        // High score display
-        long highScore = game.getSaveManager().getData().getHighScore();
-        float highDist = game.getSaveManager().getData().getHighestDistance();
-        Label statsLabel = new Label(String.format("BEST SCORE: %d   |   BEST DISTANCE: %.0fm", highScore, highDist), 
-            game.getUiManager().getSkin(), "default");
+        long  highScore = game.getSaveManager().getData().getHighScore();
+        float highDist  = game.getSaveManager().getData().getHighestDistance();
+        int   coins     = game.getSaveManager().getData().getCoins();
+        Label statsLabel = new Label(
+                String.format("BEST: %d pts  |  %.0fm  |  COINS: %d", highScore, highDist, coins),
+                game.getUiManager().getSkin(), "default");
 
-        // Buttons
-        TextButton playButton = new TextButton("PLAY", game.getUiManager().getSkin());
-        TextButton settingsButton = new TextButton("SETTINGS", game.getUiManager().getSkin());
-        TextButton exitButton = new TextButton("EXIT", game.getUiManager().getSkin(), "danger");
+        TextButton playBtn     = new TextButton("PLAY",     game.getUiManager().getSkin());
+        TextButton garageBtn   = new TextButton("GARAGE",   game.getUiManager().getSkin());
+        TextButton settingsBtn = new TextButton("SETTINGS", game.getUiManager().getSkin());
+        TextButton exitBtn     = new TextButton("EXIT",     game.getUiManager().getSkin(), "danger");
 
-        // Listeners
-        playButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
+        playBtn.addListener(new ChangeListener() {
+            @Override public void changed(ChangeEvent e, Actor a) {
                 game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
-                game.getStateMachine().transitionTo(GameState.PLAYING);
+                game.getStateMachine().transitionTo(GameState.GARAGE);
             }
         });
-
-        settingsButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
+        garageBtn.addListener(new ChangeListener() {
+            @Override public void changed(ChangeEvent e, Actor a) {
+                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                game.getStateMachine().transitionTo(GameState.GARAGE);
+            }
+        });
+        settingsBtn.addListener(new ChangeListener() {
+            @Override public void changed(ChangeEvent e, Actor a) {
                 game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
                 game.getStateMachine().transitionTo(GameState.SETTINGS);
             }
         });
-
-        exitButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
+        exitBtn.addListener(new ChangeListener() {
+            @Override public void changed(ChangeEvent e, Actor a) {
                 game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
                 Gdx.app.exit();
             }
         });
 
-        // Layout construction
-        rootTable.add(titleLabel).padTop(40).padBottom(5).row();
-        rootTable.add(subtitleLabel).padBottom(30).row();
-        rootTable.add(statsLabel).padBottom(40).row();
-
-        rootTable.add(playButton).size(280, 60).padBottom(15).row();
-        rootTable.add(settingsButton).size(280, 55).padBottom(15).row();
-        rootTable.add(exitButton).size(280, 55).padBottom(30).row();
+        root.add(titleLabel).padTop(40).padBottom(5).row();
+        root.add(subtitleLabel).padBottom(30).row();
+        root.add(statsLabel).padBottom(40).row();
+        root.add(playBtn).size(280, 60).padBottom(15).row();
+        root.add(garageBtn).size(280, 55).padBottom(15).row();
+        root.add(settingsBtn).size(280, 55).padBottom(15).row();
+        root.add(exitBtn).size(280, 55).padBottom(30).row();
     }
 
     @Override
     public void render(float delta) {
         Gdx.gl.glClearColor(0.05f, 0.07f, 0.11f, 1.0f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
-
         stage.act(Math.min(delta, 1 / 30f));
         stage.draw();
     }
 
-    @Override
-    public void resize(int width, int height) {
-        stage.getViewport().update(width, height, true);
-    }
-
-    @Override
-    public void hide() {
-        Gdx.input.setInputProcessor(null);
-    }
-
-    @Override
-    public void dispose() {
-        stage.dispose();
-    }
+    @Override public void resize(int w, int h) { stage.getViewport().update(w, h, true); }
+    @Override public void hide()               { Gdx.input.setInputProcessor(null); }
+    @Override public void dispose()            { stage.dispose(); }
 }

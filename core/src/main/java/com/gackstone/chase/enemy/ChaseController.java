@@ -6,14 +6,26 @@ import com.gackstone.chase.core.GameConfig;
 import com.gackstone.chase.player.PlayerEntity;
 
 /**
- * Intelligent pursuit controller governing enemy behavior, target tracking,
- * dynamic speed modulation, recovery from evasive maneuvers, and capture triggers.
+ * Intelligent pursuit controller governing enemy AI behaviour.
+ *
+ * <p><b>Physics model (arcade, zero-allocation):</b>
+ * <ul>
+ *   <li>Forward motion is computed each tick; no accumulated velocity object.
+ *   <li>Lateral tracking: proportional steering toward the player's X position,
+ *       lerped for smooth appearance.
+ *   <li>Speed modulation: farther behind → stronger catch-up multiplier;
+ *       near player → matches player speed plus pursuit pressure.
+ *   <li>Bank angle mirrors lateral steer rate for visual polish.
+ * </ul>
  */
 public class ChaseController {
 
     private final EnemyEntity enemy;
     private final PlayerEntity targetPlayer;
+
     private float recoveryTimer = 0.0f;
+    private float sideAttackTimer = 0.0f;
+    private static final float SIDE_ATTACK_COOLDOWN = 6.0f;
 
     public ChaseController(EnemyEntity enemy, PlayerEntity targetPlayer) {
         this.enemy = enemy;
@@ -21,83 +33,75 @@ public class ChaseController {
     }
 
     public void update(float delta) {
-        if (!enemy.isActive() || enemy.getAiState() == ChaseAIState.DISABLED) {
-            return;
-        }
+        if (!enemy.isActive() || enemy.getAiState() == ChaseAIState.DISABLED) return;
 
-        Vector3 enemyPos = enemy.getPosition();
+        Vector3 enemyPos  = enemy.getPosition();
         Vector3 playerPos = targetPlayer.getPosition();
-        float playerForwardSpeed = targetPlayer.getState().getForwardSpeed();
+        float   playerSpeed  = targetPlayer.getState().getForwardSpeed();
 
-        // Calculate distance delta (z-axis along road and Euclidean)
-        float distanceZ = playerPos.z - enemyPos.z;
+        float distanceZ  = playerPos.z - enemyPos.z;
         float lateralDiff = playerPos.x - enemyPos.x;
+
+        // Cooldown for side-ram attack
+        if (sideAttackTimer > 0) sideAttackTimer -= delta;
 
         switch (enemy.getAiState()) {
             case IDLE:
-                // Standby until player passes or triggers proximity
-                if (distanceZ > -5.0f && distanceZ < 60.0f) {
-                    enemy.setAiState(ChaseAIState.CHASING);
-                }
+                if (distanceZ > -5.0f && distanceZ < 60.0f) enemy.setAiState(ChaseAIState.CHASING);
                 break;
 
             case SEARCHING:
-                // Re-orient toward last known player lane
-                if (Math.abs(distanceZ) < 70.0f) {
-                    enemy.setAiState(ChaseAIState.CHASING);
-                }
+                if (Math.abs(distanceZ) < 70.0f) enemy.setAiState(ChaseAIState.CHASING);
                 break;
 
             case CHASING:
-                // 1. Dynamic speed modulation:
-                // When far behind, chaser gets a catch-up boost.
-                // When close, chaser matches player speed + slight pursuit pressure.
                 float targetSpeed;
                 if (distanceZ > GameConfig.ENEMY_CATCHUP_BOOST_DISTANCE) {
-                    targetSpeed = playerForwardSpeed * 1.25f;
-                } else if (distanceZ > 5.0f) {
-                    targetSpeed = playerForwardSpeed * GameConfig.ENEMY_BASE_SPEED_MULTIPLIER;
+                    targetSpeed = playerSpeed * 1.30f;          // aggressive catch-up
+                } else if (distanceZ > 8.0f) {
+                    targetSpeed = playerSpeed * GameConfig.ENEMY_BASE_SPEED_MULTIPLIER;
                 } else {
-                    targetSpeed = playerForwardSpeed * 1.02f;
+                    targetSpeed = playerSpeed * 1.02f;          // sustain close pursuit
                 }
+                enemy.setChaseSpeed(MathUtils.lerp(enemy.getChaseSpeed(), targetSpeed,
+                        Math.min(1.0f, delta * 3.5f)));
 
-                enemy.setChaseSpeed(MathUtils.lerp(enemy.getChaseSpeed(), targetSpeed, Math.min(1.0f, delta * 3.0f)));
-
-                // 2. Lateral tracking (smoothing follows player's lane/X position)
-                float steerX = MathUtils.clamp(lateralDiff * 2.0f, -1.0f, 1.0f);
+                // Lateral tracking – sigmoid-smoothed
+                float steerX = MathUtils.clamp(lateralDiff * 2.2f, -1.0f, 1.0f);
                 enemyPos.x += steerX * GameConfig.ENEMY_LATERAL_TRACKING_SPEED * delta;
-                enemyPos.x = MathUtils.clamp(enemyPos.x, -GameConfig.BOUNDARY_LIMIT_X, GameConfig.BOUNDARY_LIMIT_X);
+                enemyPos.x  = MathUtils.clamp(enemyPos.x, -GameConfig.BOUNDARY_LIMIT_X, GameConfig.BOUNDARY_LIMIT_X);
 
-                // 3. Forward integration
+                // Propagate visual bank angle
+                enemy.setBankAngle(MathUtils.lerp(enemy.getBankAngle(), -steerX * 12.0f,
+                        Math.min(1.0f, delta * 10.0f)));
+
+                // Forward integration
                 enemyPos.z += enemy.getChaseSpeed() * delta;
 
-                // 4. Evasion check: if player performs sudden extreme lateral dodge
+                // Side-ram attack when very close and aligned
+                if (Math.abs(lateralDiff) < 1.5f && distanceZ < 4.0f && sideAttackTimer <= 0) {
+                    float ramDir = MathUtils.randomSign();
+                    enemyPos.x += ramDir * 0.6f;
+                    sideAttackTimer = SIDE_ATTACK_COOLDOWN;
+                }
+
+                // Dodge evade detection → recovery state
                 if (Math.abs(lateralDiff) > 4.5f && distanceZ < 6.0f) {
                     enemy.setAiState(ChaseAIState.RECOVERING);
                     recoveryTimer = GameConfig.ENEMY_RECOVERY_TIME;
                 }
-
-                // If player is drastically far ahead, state becomes LOST_TARGET
-                if (distanceZ > 90.0f) {
-                    enemy.setAiState(ChaseAIState.LOST_TARGET);
-                }
+                if (distanceZ > 90.0f) enemy.setAiState(ChaseAIState.LOST_TARGET);
                 break;
 
             case RECOVERING:
-                // Temporarily slow down after being dodged
-                enemyPos.z += (playerForwardSpeed * 0.85f) * delta;
+                enemyPos.z += (playerSpeed * 0.82f) * delta;
                 recoveryTimer -= delta;
-                if (recoveryTimer <= 0.0f) {
-                    enemy.setAiState(ChaseAIState.CHASING);
-                }
+                if (recoveryTimer <= 0.0f) enemy.setAiState(ChaseAIState.CHASING);
                 break;
 
             case LOST_TARGET:
-                // Catch up steadily to reacquire target
-                enemyPos.z += (playerForwardSpeed * 1.3f) * delta;
-                if (distanceZ < 50.0f) {
-                    enemy.setAiState(ChaseAIState.CHASING);
-                }
+                enemyPos.z += (playerSpeed * 1.35f) * delta;
+                if (distanceZ < 50.0f) enemy.setAiState(ChaseAIState.CHASING);
                 break;
 
             case DISABLED:
@@ -108,9 +112,7 @@ public class ChaseController {
         enemy.update(delta);
     }
 
-    public EnemyEntity getEnemy() {
-        return enemy;
-    }
+    public EnemyEntity getEnemy() { return enemy; }
 
     public float getDistanceToPlayer() {
         return targetPlayer.getPosition().z - enemy.getPosition().z;

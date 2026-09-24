@@ -1,30 +1,49 @@
 package com.gackstone.chase.player;
 
+import com.gackstone.chase.cars.CarDefinition;
 import com.gackstone.chase.core.GameConfig;
 
 /**
- * Encapsulates the dynamic physical state of the Player.
+ * Encapsulates dynamic physical state, stats, damage and distance of the player.
  */
 public class PlayerState {
 
+    private CarDefinition carDefinition;
     private float health = GameConfig.PLAYER_INITIAL_HEALTH;
     private float maxHealth = GameConfig.PLAYER_INITIAL_HEALTH;
     private float forwardSpeed = GameConfig.PLAYER_INITIAL_FORWARD_SPEED;
     private float currentBankAngle = 0.0f;
+    private float currentSteerAngle = 0.0f;
     private float distanceTraveled = 0.0f;
     private boolean isAlive = true;
     private boolean isInvulnerable = false;
     private float invulnerabilityTimer = 0.0f;
+    private float nitroAmount = 100.0f;
+    private boolean isBoosting = false;
+
+    public void applyCarDefinition(CarDefinition car) {
+        this.carDefinition = car;
+        this.maxHealth = car.getMaxHealth();
+        this.health = this.maxHealth;
+        this.forwardSpeed = GameConfig.PLAYER_INITIAL_FORWARD_SPEED;
+    }
 
     public void reset() {
-        health = GameConfig.PLAYER_INITIAL_HEALTH;
-        maxHealth = GameConfig.PLAYER_INITIAL_HEALTH;
+        if (carDefinition != null) {
+            maxHealth = carDefinition.getMaxHealth();
+        } else {
+            maxHealth = GameConfig.PLAYER_INITIAL_HEALTH;
+        }
+        health = maxHealth;
         forwardSpeed = GameConfig.PLAYER_INITIAL_FORWARD_SPEED;
         currentBankAngle = 0.0f;
+        currentSteerAngle = 0.0f;
         distanceTraveled = 0.0f;
         isAlive = true;
         isInvulnerable = false;
         invulnerabilityTimer = 0.0f;
+        nitroAmount = 100.0f;
+        isBoosting = false;
     }
 
     public void update(float delta) {
@@ -33,6 +52,11 @@ public class PlayerState {
             if (invulnerabilityTimer <= 0.0f) {
                 isInvulnerable = false;
             }
+        }
+
+        // Regenerate nitro gradually
+        if (!isBoosting && nitroAmount < 100.0f) {
+            nitroAmount = Math.min(100.0f, nitroAmount + 8.0f * delta);
         }
     }
 
@@ -47,6 +71,10 @@ public class PlayerState {
             isInvulnerable = true;
             invulnerabilityTimer = 0.8f;
         }
+    }
+
+    public CarDefinition getCarDefinition() {
+        return carDefinition;
     }
 
     public float getHealth() {
@@ -73,6 +101,14 @@ public class PlayerState {
         this.currentBankAngle = currentBankAngle;
     }
 
+    public float getCurrentSteerAngle() {
+        return currentSteerAngle;
+    }
+
+    public void setCurrentSteerAngle(float currentSteerAngle) {
+        this.currentSteerAngle = currentSteerAngle;
+    }
+
     public float getDistanceTraveled() {
         return distanceTraveled;
     }
@@ -87,5 +123,21 @@ public class PlayerState {
 
     public boolean isInvulnerable() {
         return isInvulnerable;
+    }
+
+    public float getNitroAmount() {
+        return nitroAmount;
+    }
+
+    public void setNitroAmount(float nitroAmount) {
+        this.nitroAmount = nitroAmount;
+    }
+
+    public boolean isBoosting() {
+        return isBoosting;
+    }
+
+    public void setBoosting(boolean boosting) {
+        isBoosting = boosting;
     }
 }
