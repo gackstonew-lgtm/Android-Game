@@ -150,10 +150,8 @@ public class ChaseGame extends Game implements GameStateMachine.StateChangeListe
                 break;
             case PLAYING:
                 setScreen(null);   // 3D scene rendered manually in render()
-                // Restart session only if coming from GAME_OVER / MAIN_MENU / GARAGE
-                if (previousState == GameState.GAME_OVER ||
-                        previousState == GameState.MAIN_MENU ||
-                        previousState == GameState.ENV_SELECT) {
+                // Restart session if starting fresh (not unpausing)
+                if (previousState != GameState.PAUSED) {
                     gameManager.restart();
                 }
                 Gdx.input.setInputProcessor(playingInputMultiplexer);
@@ -206,7 +204,17 @@ public class ChaseGame extends Game implements GameStateMachine.StateChangeListe
     }
 
     private void clearScreen() {
-        Gdx.gl.glClearColor(0.06f, 0.08f, 0.12f, 1.0f);
+        com.badlogic.gdx.graphics.Color sky = null;
+        if (gameManager != null && gameManager.getWorldManager() != null 
+                && gameManager.getWorldManager().getEnvironmentRenderer() != null
+                && gameManager.getWorldManager().getEnvironmentRenderer().getCurrentTheme() != null) {
+            sky = gameManager.getWorldManager().getEnvironmentRenderer().getCurrentTheme().getSkyClearColor();
+        }
+        if (sky != null) {
+            Gdx.gl.glClearColor(sky.r, sky.g, sky.b, 1.0f);
+        } else {
+            Gdx.gl.glClearColor(0.06f, 0.08f, 0.12f, 1.0f);
+        }
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
     }
 

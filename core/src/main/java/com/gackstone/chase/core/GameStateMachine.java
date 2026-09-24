@@ -51,15 +51,19 @@ public class GameStateMachine {
             case LOADING:
                 return to == GameState.MAIN_MENU || to == GameState.PLAYING;
             case MAIN_MENU:
-                return to == GameState.PLAYING || to == GameState.SETTINGS || to == GameState.LOADING;
+                return to == GameState.PLAYING || to == GameState.GARAGE || to == GameState.ENV_SELECT || to == GameState.SETTINGS || to == GameState.LOADING;
+            case GARAGE:
+                return to == GameState.MAIN_MENU || to == GameState.ENV_SELECT || to == GameState.PLAYING || to == GameState.SETTINGS;
+            case ENV_SELECT:
+                return to == GameState.GARAGE || to == GameState.MAIN_MENU || to == GameState.PLAYING;
             case PLAYING:
-                return to == GameState.PAUSED || to == GameState.GAME_OVER || to == GameState.MAIN_MENU || to == GameState.COUNTDOWN;
+                return to == GameState.PAUSED || to == GameState.GAME_OVER || to == GameState.MAIN_MENU || to == GameState.COUNTDOWN || to == GameState.SETTINGS;
             case PAUSED:
                 return to == GameState.PLAYING || to == GameState.MAIN_MENU || to == GameState.SETTINGS || to == GameState.GAME_OVER;
             case GAME_OVER:
-                return to == GameState.PLAYING || to == GameState.MAIN_MENU || to == GameState.LOADING;
+                return to == GameState.PLAYING || to == GameState.MAIN_MENU || to == GameState.GARAGE || to == GameState.ENV_SELECT || to == GameState.LOADING;
             case SETTINGS:
-                return to == GameState.MAIN_MENU || to == GameState.PAUSED;
+                return to == GameState.MAIN_MENU || to == GameState.PAUSED || to == GameState.GARAGE;
             case COUNTDOWN:
                 return to == GameState.PLAYING || to == GameState.PAUSED;
             case RESPAWNING:

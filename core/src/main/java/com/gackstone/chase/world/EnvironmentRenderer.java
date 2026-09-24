@@ -69,8 +69,9 @@ public class EnvironmentRenderer implements Disposable {
     public void setTheme(EnvironmentTheme theme) {
         this.currentTheme = theme;
 
-        // 1. Update Lighting
+        // 1. Update Lighting & Fog
         environment.set(new ColorAttribute(ColorAttribute.AmbientLight, theme.getAmbientLight()));
+        environment.set(new ColorAttribute(ColorAttribute.Fog, theme.getFogColor()));
         sunLight.set(theme.getDirectionalLightColor(), theme.getLightDirection());
 
         // 2. Recreate ground plane with theme terrain color
