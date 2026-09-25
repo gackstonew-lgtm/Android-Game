@@ -8,7 +8,7 @@ import com.gackstone.chase.input.IInputController;
 
 /**
  * Handles vehicle arcade physics, acceleration curves, lateral tire grip,
- * drift slip angles, and visual bank roll.
+ * drift slip angles, and visual bank roll with vehicle upgrade boosts.
  */
 public class PlayerController {
 
@@ -32,9 +32,14 @@ public class PlayerController {
         Vector3 pos = player.getPosition();
         Vector3 vel = player.getVelocity();
 
-        float maxSpeed = car != null ? car.getMaxSpeed() : GameConfig.PLAYER_MAX_FORWARD_SPEED;
-        float accelRate = car != null ? car.getAcceleration() * 0.1f : GameConfig.PLAYER_FORWARD_ACCELERATION;
-        float handlingRate = car != null ? car.getHandling() : GameConfig.PLAYER_LATERAL_SPEED;
+        float baseMaxSpeed = car != null ? car.getMaxSpeed() : GameConfig.PLAYER_MAX_FORWARD_SPEED;
+        float baseAccelRate = car != null ? car.getAcceleration() * 0.1f : GameConfig.PLAYER_FORWARD_ACCELERATION;
+        float baseHandlingRate = car != null ? car.getHandling() : GameConfig.PLAYER_LATERAL_SPEED;
+
+        // Apply Upgrade Multipliers
+        float maxSpeed = baseMaxSpeed * (1.0f + state.getEngineTier() * GameConfig.UPGRADE_SPEED_BOOST_PER_TIER);
+        float accelRate = baseAccelRate * (1.0f + state.getEngineTier() * GameConfig.UPGRADE_ACCEL_BOOST_PER_TIER);
+        float handlingRate = baseHandlingRate * (1.0f + state.getHandlingTier() * GameConfig.UPGRADE_HANDLING_BOOST_PER_TIER);
 
         // 1. Process forward acceleration & Nitro Boost
         boolean wantsBoost = false;

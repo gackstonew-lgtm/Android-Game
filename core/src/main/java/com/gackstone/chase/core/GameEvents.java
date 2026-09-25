@@ -4,7 +4,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Lightweight decoupled game event bus for dispatching gameplay occurrences
- * such as player damage, collisions, score changes, and enemy capture.
+ * such as player damage, collisions, score changes, near misses, and enemy capture.
  */
 public class GameEvents {
 
@@ -14,6 +14,8 @@ public class GameEvents {
         default void onObstacleHit(float damage) {}
         default void onScoreUpdated(long currentScore, float currentDistance) {}
         default void onGameRestarted() {}
+        default void onNearMiss(float bonusScore) {}
+        default void onChallengeCompleted(String title, int coinReward) {}
     }
 
     private static final CopyOnWriteArrayList<GameEventListener> listeners = new CopyOnWriteArrayList<>();
@@ -55,6 +57,18 @@ public class GameEvents {
     public static void fireGameRestarted() {
         for (GameEventListener listener : listeners) {
             listener.onGameRestarted();
+        }
+    }
+
+    public static void fireNearMiss(float bonusScore) {
+        for (GameEventListener listener : listeners) {
+            listener.onNearMiss(bonusScore);
+        }
+    }
+
+    public static void fireChallengeCompleted(String title, int coinReward) {
+        for (GameEventListener listener : listeners) {
+            listener.onChallengeCompleted(title, coinReward);
         }
     }
 

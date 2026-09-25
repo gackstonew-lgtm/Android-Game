@@ -4,11 +4,16 @@ import com.gackstone.chase.cars.CarDefinition;
 import com.gackstone.chase.core.GameConfig;
 
 /**
- * Encapsulates dynamic physical state, stats, damage and distance of the player.
+ * Encapsulates dynamic physical state, stats, damage, nitro adrenaline, and upgrades of the player.
  */
 public class PlayerState {
 
     private CarDefinition carDefinition;
+    private int engineTier = 0;
+    private int handlingTier = 0;
+    private int armourTier = 0;
+    private int nitroTier = 0;
+
     private float health = GameConfig.PLAYER_INITIAL_HEALTH;
     private float maxHealth = GameConfig.PLAYER_INITIAL_HEALTH;
     private float forwardSpeed = GameConfig.PLAYER_INITIAL_FORWARD_SPEED;
@@ -22,15 +27,29 @@ public class PlayerState {
     private boolean isBoosting = false;
 
     public void applyCarDefinition(CarDefinition car) {
+        applyCarDefinitionWithUpgrades(car, 0, 0, 0, 0);
+    }
+
+    public void applyCarDefinitionWithUpgrades(CarDefinition car, int engineTier, int handlingTier, int armourTier, int nitroTier) {
         this.carDefinition = car;
-        this.maxHealth = car.getMaxHealth();
+        this.engineTier = engineTier;
+        this.handlingTier = handlingTier;
+        this.armourTier = armourTier;
+        this.nitroTier = nitroTier;
+
+        float baseHp = (car != null) ? car.getMaxHealth() : GameConfig.PLAYER_INITIAL_HEALTH;
+        float bonusHp = baseHp * (armourTier * GameConfig.UPGRADE_ARMOUR_BOOST_PER_TIER);
+        this.maxHealth = baseHp + bonusHp;
         this.health = this.maxHealth;
         this.forwardSpeed = GameConfig.PLAYER_INITIAL_FORWARD_SPEED;
+        this.nitroAmount = 100.0f;
     }
 
     public void reset() {
         if (carDefinition != null) {
-            maxHealth = carDefinition.getMaxHealth();
+            float baseHp = carDefinition.getMaxHealth();
+            float bonusHp = baseHp * (armourTier * GameConfig.UPGRADE_ARMOUR_BOOST_PER_TIER);
+            maxHealth = baseHp + bonusHp;
         } else {
             maxHealth = GameConfig.PLAYER_INITIAL_HEALTH;
         }
@@ -54,10 +73,16 @@ public class PlayerState {
             }
         }
 
-        // Regenerate nitro gradually
+        // Regenerate nitro gradually (faster with higher nitroTier)
         if (!isBoosting && nitroAmount < 100.0f) {
-            nitroAmount = Math.min(100.0f, nitroAmount + 8.0f * delta);
+            float regenRate = 8.0f * (1.0f + nitroTier * GameConfig.UPGRADE_NITRO_BOOST_PER_TIER);
+            nitroAmount = Math.min(100.0f, nitroAmount + regenRate * delta);
         }
+    }
+
+    public void applyNearMissReward() {
+        // Immediate adrenaline surge
+        this.nitroAmount = Math.min(100.0f, this.nitroAmount + 22.0f);
     }
 
     public void takeDamage(float amount) {
@@ -76,6 +101,11 @@ public class PlayerState {
     public CarDefinition getCarDefinition() {
         return carDefinition;
     }
+
+    public int getEngineTier()   { return engineTier; }
+    public int getHandlingTier() { return handlingTier; }
+    public int getArmourTier()   { return armourTier; }
+    public int getNitroTier()    { return nitroTier; }
 
     public float getHealth() {
         return health;

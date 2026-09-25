@@ -3,9 +3,10 @@ package com.gackstone.chase;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.gackstone.chase.audio.AudioManager;
-import com.gackstone.chase.camera.CameraMode;
+import com.gackstone.chase.audio.SoundRegistry;
 import com.gackstone.chase.cars.CarDefinition;
 import com.gackstone.chase.cars.CarRegistry;
 import com.gackstone.chase.core.GameConfig;
@@ -30,30 +31,22 @@ import com.gackstone.chase.world.EnvironmentRegistry;
 /**
  * Root {@link Game} and master coordinator for Chase.
  *
- * <p>Responsibility: connects the Android host shell to the 3D runtime, state
- * machine, input multiplexer, audio buses, and responsive UI layers.
- *
- * <p>New in v2.0:
- * <ul>
- *   <li>{@link GarageScreen} – car selection with unlock/coin logic.
- *   <li>{@link EnvSelectScreen} – environment / track theme selector.
- *   <li>Camera-cycle button wired into the HUD.
- *   <li>Saved car and theme applied to the game session on start.
- * </ul>
+ * <p>Connects platform runtime shell to the 3D game engine, state machine,
+ * input controllers, multi-tier upgrades, and responsive Scene2D UI screens.
  */
 public class ChaseGame extends Game implements GameStateMachine.StateChangeListener,
         GameEvents.GameEventListener {
 
     private final ISaveStorage saveStorage;
 
-    // ── Core managers ─────────────────────────────────────────────────────────
-    private GameStateMachine      stateMachine;
-    private SaveManager           saveManager;
-    private AudioManager          audioManager;
-    private UIManager             uiManager;
+    // ── Core Managers ─────────────────────────────────────────────────────────
+    private GameStateMachine       stateMachine;
+    private SaveManager            saveManager;
+    private AudioManager           audioManager;
+    private UIManager              uiManager;
     private TouchGestureController touchController;
-    private GameManager           gameManager;
-    private DebugOverlay          debugOverlay;
+    private GameManager            gameManager;
+    private DebugOverlay           debugOverlay;
 
     // ── Screens ───────────────────────────────────────────────────────────────
     private MainMenuScreen   mainMenuScreen;
@@ -77,38 +70,32 @@ public class ChaseGame extends Game implements GameStateMachine.StateChangeListe
     @Override
     public void create() {
         // 1. Core managers
-        stateMachine  = new GameStateMachine();
-        saveManager   = new SaveManager(saveStorage);
-        audioManager  = AudioManager.getInstance();
-        uiManager     = new UIManager();
-        debugOverlay  = new DebugOverlay();
-        debugOverlay.setEnabled(saveManager.getData().isDebugOverlayEnabled());
+        stateMachine = new GameStateMachine();
+        saveManager  = new SaveManager(saveStorage);
+        audioManager = AudioManager.getInstance();
+        uiManager    = new UIManager();
+        debugOverlay = new DebugOverlay();
 
-        audioManager.setMasterVolume(saveManager.getData().getMasterVolume());
-        audioManager.setMusicVolume(saveManager.getData().getMusicVolume());
-        audioManager.setSfxVolume(saveManager.getData().getSfxVolume());
+        if (saveManager.getData() != null) {
+            debugOverlay.setEnabled(saveManager.getData().isDebugOverlayEnabled());
+            audioManager.setMasterVolume(saveManager.getData().getMasterVolume());
+            audioManager.setMusicVolume(saveManager.getData().getMusicVolume());
+            audioManager.setSfxVolume(saveManager.getData().getSfxVolume());
+        }
 
         // 2. Input + 3D runtime
         touchController = new TouchGestureController();
+        if (saveManager.getData() != null) {
+            touchController.setSensitivity(saveManager.getData().getSteeringSensitivity());
+        }
+
         gameManager = new GameManager(touchController,
                 Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
-        // Apply saved car selection
-        String savedCarId = saveManager.getData().getSelectedCarId();
-        if (savedCarId != null && !savedCarId.isEmpty()) {
-            CarDefinition savedCar = CarRegistry.getById(savedCarId);
-            gameManager.selectPlayerCar(savedCar);
-        }
+        // Apply saved car selection & upgrades
+        applySavedVehicleAndTheme();
 
-        // Apply saved environment theme
-        String savedThemeId = saveManager.getData().getSelectedThemeId();
-        if (savedThemeId != null && !savedThemeId.isEmpty()) {
-            gameManager.selectEnvironment(savedThemeId);
-        } else {
-            gameManager.selectEnvironment(EnvironmentRegistry.THEME_NEON_CITY);
-        }
-
-        // 3. Screens
+        // 3. Initialize UI Screens
         mainMenuScreen  = new MainMenuScreen(this);
         settingsScreen  = new SettingsScreen(this);
         garageScreen    = new GarageScreen(this);
@@ -117,94 +104,158 @@ public class ChaseGame extends Game implements GameStateMachine.StateChangeListe
         pauseMenuScreen = new PauseMenuScreen(this);
         gameOverScreen  = new GameOverScreen(this);
 
-        // 4. In-game input (HUD gestures + 3D touch steering)
+        // 4. In-game input multiplexer (HUD touch gestures + 3D vehicle control)
         playingInputMultiplexer = new InputMultiplexer();
         playingInputMultiplexer.addProcessor(hudScreen.getStage());
         playingInputMultiplexer.addProcessor(touchController);
 
-        // 5. Events
+        // 5. Register Listeners & Initial Transition
         stateMachine.addListener(this);
         GameEvents.addListener(this);
 
         stateMachine.transitionTo(GameState.MAIN_MENU);
     }
 
+    private void applySavedVehicleAndTheme() {
+        if (saveManager == null || saveManager.getData() == null || gameManager == null) return;
+
+        String savedCarId = saveManager.getData().getSelectedCarId();
+        CarDefinition savedCar = (savedCarId != null && !savedCarId.isEmpty())
+                ? CarRegistry.getById(savedCarId) : CarRegistry.getPlayerCars().first();
+
+        int eTier = saveManager.getData().getUpgradeTier(savedCar.getId(), "engine");
+        int hTier = saveManager.getData().getUpgradeTier(savedCar.getId(), "handling");
+        int aTier = saveManager.getData().getUpgradeTier(savedCar.getId(), "armour");
+        int nTier = saveManager.getData().getUpgradeTier(savedCar.getId(), "nitro");
+        gameManager.selectPlayerCarWithUpgrades(savedCar, eTier, hTier, aTier, nTier);
+
+        String savedThemeId = saveManager.getData().getSelectedThemeId();
+        if (savedThemeId != null && !savedThemeId.isEmpty()) {
+            gameManager.selectEnvironment(savedThemeId);
+        } else {
+            gameManager.selectEnvironment(EnvironmentRegistry.THEME_NEON_CITY);
+        }
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
-    // State machine
+    // State Machine Transitions
     // ──────────────────────────────────────────────────────────────────────────
 
     @Override
     public void onStateChanged(GameState previousState, GameState newState) {
+        if (newState == null) return;
+
         switch (newState) {
             case MAIN_MENU:
-                setScreen(mainMenuScreen);
+                if (mainMenuScreen != null) {
+                    setScreen(mainMenuScreen);
+                }
                 break;
+
             case SETTINGS:
-                setScreen(settingsScreen);
+                if (settingsScreen != null) {
+                    setScreen(settingsScreen);
+                }
                 break;
+
             case GARAGE:
-                setScreen(garageScreen);
+                if (garageScreen != null) {
+                    setScreen(garageScreen);
+                }
                 break;
+
             case ENV_SELECT:
-                setScreen(envSelectScreen);
+                if (envSelectScreen != null) {
+                    setScreen(envSelectScreen);
+                }
                 break;
+
             case PLAYING:
-                setScreen(null);   // 3D scene rendered manually in render()
-                // Restart session if starting fresh (not unpausing)
-                if (previousState != GameState.PAUSED) {
+                setScreen(null); // 3D gameplay scene rendered manually in render()
+
+                // Apply latest vehicle upgrades and theme before starting
+                applySavedVehicleAndTheme();
+
+                if (gameManager != null && previousState != GameState.PAUSED) {
                     gameManager.restart();
                 }
-                Gdx.input.setInputProcessor(playingInputMultiplexer);
+
+                if (playingInputMultiplexer != null) {
+                    Gdx.input.setInputProcessor(playingInputMultiplexer);
+                }
                 break;
+
             case PAUSED:
-                Gdx.input.setInputProcessor(pauseMenuScreen.getStage());
+                if (pauseMenuScreen != null) {
+                    Gdx.input.setInputProcessor(pauseMenuScreen.getStage());
+                }
                 break;
+
             case GAME_OVER:
-                Gdx.input.setInputProcessor(gameOverScreen.getStage());
+                if (gameOverScreen != null) {
+                    Gdx.input.setInputProcessor(gameOverScreen.getStage());
+                }
                 break;
+
             default:
                 break;
         }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Render
+    // Render Loop
     // ──────────────────────────────────────────────────────────────────────────
 
     @Override
     public void render() {
-        float delta     = Gdx.graphics.getDeltaTime();
-        GameState state = stateMachine.getCurrentState();
+        float delta = Gdx.graphics.getDeltaTime();
+        GameState state = (stateMachine != null) ? stateMachine.getCurrentState() : null;
 
         if (state == GameState.PLAYING) {
             clearScreen();
-            gameManager.update(delta);
-            gameManager.render();
-            hudScreen.update(delta);
-            hudScreen.render();
-            debugOverlay.setEnabled(saveManager.getData().isDebugOverlayEnabled());
-            debugOverlay.render(gameManager);
+            if (gameManager != null) {
+                gameManager.update(delta);
+                gameManager.render();
+            }
+            if (hudScreen != null) {
+                hudScreen.update(delta);
+                hudScreen.render();
+            }
+            if (debugOverlay != null && saveManager != null && saveManager.getData() != null) {
+                debugOverlay.setEnabled(saveManager.getData().isDebugOverlayEnabled());
+                debugOverlay.render(gameManager);
+            }
 
         } else if (state == GameState.PAUSED) {
             clearScreen();
-            gameManager.render();
-            hudScreen.render();
-            pauseMenuScreen.update(delta);
-            pauseMenuScreen.render();
+            if (gameManager != null) {
+                gameManager.render();
+            }
+            if (hudScreen != null) {
+                hudScreen.render();
+            }
+            if (pauseMenuScreen != null) {
+                pauseMenuScreen.update(delta);
+                pauseMenuScreen.render();
+            }
 
         } else if (state == GameState.GAME_OVER) {
             clearScreen();
-            gameManager.render();
-            gameOverScreen.update(delta);
-            gameOverScreen.render();
+            if (gameManager != null) {
+                gameManager.render();
+            }
+            if (gameOverScreen != null) {
+                gameOverScreen.update(delta);
+                gameOverScreen.render();
+            }
 
         } else {
-            super.render();   // Scene2D screens handle themselves
+            super.render(); // Active ScreenAdapter handles its own rendering
         }
     }
 
     private void clearScreen() {
-        com.badlogic.gdx.graphics.Color sky = null;
+        Color sky = null;
         if (gameManager != null && gameManager.getWorldManager() != null 
                 && gameManager.getWorldManager().getEnvironmentRenderer() != null
                 && gameManager.getWorldManager().getEnvironmentRenderer().getCurrentTheme() != null) {
@@ -219,14 +270,38 @@ public class ChaseGame extends Game implements GameStateMachine.StateChangeListe
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Game events
+    // Game Events
     // ──────────────────────────────────────────────────────────────────────────
 
     @Override
     public void onPlayerCaught(float finalDistance, long finalScore) {
-        boolean isNewRecord = saveManager.recordRunResult(finalScore, finalDistance);
-        gameOverScreen.setSessionResults(finalScore, finalDistance, isNewRecord);
-        stateMachine.transitionTo(GameState.GAME_OVER);
+        if (saveManager != null) {
+            boolean isNewRecord = saveManager.recordRunResult(finalScore, finalDistance);
+            if (gameOverScreen != null) {
+                gameOverScreen.setSessionResults(finalScore, finalDistance, isNewRecord);
+            }
+        }
+        if (stateMachine != null) {
+            stateMachine.transitionTo(GameState.GAME_OVER);
+        }
+    }
+
+    @Override
+    public void onNearMiss(float bonusScore) {
+        if (audioManager != null) {
+            audioManager.playSound(SoundRegistry.SND_DODGE, SoundRegistry.AudioCategory.EFFECTS);
+        }
+        if (saveManager != null && saveManager.getData() != null) {
+            saveManager.getData().addNearMiss();
+        }
+    }
+
+    @Override
+    public void onChallengeCompleted(String title, int coinReward) {
+        if (saveManager != null && saveManager.getData() != null) {
+            saveManager.getData().addCoins(coinReward);
+            saveManager.save();
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -236,10 +311,14 @@ public class ChaseGame extends Game implements GameStateMachine.StateChangeListe
     @Override
     public void resize(int width, int height) {
         super.resize(width, height);
-        if (gameManager    != null) gameManager.resize(width, height);
+        if (gameManager     != null) gameManager.resize(width, height);
         if (hudScreen       != null) hudScreen.resize(width, height);
         if (pauseMenuScreen != null) pauseMenuScreen.resize(width, height);
         if (gameOverScreen  != null) gameOverScreen.resize(width, height);
+        if (mainMenuScreen  != null) mainMenuScreen.resize(width, height);
+        if (garageScreen    != null) garageScreen.resize(width, height);
+        if (envSelectScreen != null) envSelectScreen.resize(width, height);
+        if (settingsScreen  != null) settingsScreen.resize(width, height);
     }
 
     @Override
@@ -248,13 +327,17 @@ public class ChaseGame extends Game implements GameStateMachine.StateChangeListe
         if (stateMachine != null && stateMachine.getCurrentState() == GameState.PLAYING) {
             stateMachine.transitionTo(GameState.PAUSED);
         }
-        if (audioManager != null) audioManager.pauseMusic();
+        if (audioManager != null) {
+            audioManager.pauseMusic();
+        }
     }
 
     @Override
     public void resume() {
         super.resume();
-        if (audioManager != null) audioManager.resumeMusic();
+        if (audioManager != null) {
+            audioManager.resumeMusic();
+        }
     }
 
     @Override
@@ -268,8 +351,10 @@ public class ChaseGame extends Game implements GameStateMachine.StateChangeListe
         if (hudScreen       != null) hudScreen.dispose();
         if (pauseMenuScreen != null) pauseMenuScreen.dispose();
         if (gameOverScreen  != null) gameOverScreen.dispose();
+        if (mainMenuScreen  != null) mainMenuScreen.dispose();
         if (garageScreen    != null) garageScreen.dispose();
         if (envSelectScreen != null) envSelectScreen.dispose();
+        if (settingsScreen  != null) settingsScreen.dispose();
     }
 
     // ──────────────────────────────────────────────────────────────────────────

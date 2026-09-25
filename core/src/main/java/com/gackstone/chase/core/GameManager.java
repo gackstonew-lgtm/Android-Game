@@ -18,18 +18,14 @@ import com.gackstone.chase.world.WorldManager;
 
 /**
  * Coordinates active 3D gameplay systems: asset registry, physics, player
- * control, enemy pursuit AI, camera, scoring, and world generation.
- *
- * <p>Dependency graph: {@code GameManager} owns {@link ModelRegistry} and injects
- * it into every subsystem that needs 3D models, keeping a single source of truth
- * for model lifecycles.
+ * control, enemy pursuit AI, camera, scoring, near misses, and world generation.
  */
 public class GameManager implements Disposable, GameEvents.GameEventListener {
 
-    // ── Core asset pipeline ───────────────────────────────────────────────────
+    // ── Core Asset Pipeline ───────────────────────────────────────────────────
     private final ModelRegistry   modelRegistry;
 
-    // ── Gameplay systems ──────────────────────────────────────────────────────
+    // ── Gameplay Systems ──────────────────────────────────────────────────────
     private final PlayerEntity    player;
     private final PlayerController playerController;
     private final CollisionManager collisionManager;
@@ -38,9 +34,10 @@ public class GameManager implements Disposable, GameEvents.GameEventListener {
     private final ChaseCamera     chaseCamera;
     private final ModelBatch      modelBatch;
 
-    // ── Session state ─────────────────────────────────────────────────────────
-    private long  currentScore       = 0;
-    private float scoreAccumulator   = 0.0f;
+    // ── Session State ─────────────────────────────────────────────────────────
+    private long  currentScore          = 0;
+    private float scoreAccumulator      = 0.0f;
+    private int   sessionNearMisses     = 0;
     private boolean isGameOverTriggered = false;
 
     public GameManager(IInputController inputController, float viewportWidth, float viewportHeight) {
@@ -114,13 +111,33 @@ public class GameManager implements Disposable, GameEvents.GameEventListener {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Session control
+    // Events
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @Override
+    public void onNearMiss(float bonusScore) {
+        if (isGameOverTriggered || !player.getState().isAlive()) return;
+
+        sessionNearMisses++;
+        scoreAccumulator += bonusScore;
+        currentScore = (long) scoreAccumulator;
+        player.getState().applyNearMissReward();
+
+        // Check progression challenge: 5 near-misses in a single run
+        if (sessionNearMisses == 5) {
+            GameEvents.fireChallengeCompleted("CLOSE CALL: 5 NEAR MISSES", 750);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Session Control
     // ──────────────────────────────────────────────────────────────────────────
 
     public void restart() {
         isGameOverTriggered = false;
         currentScore        = 0;
         scoreAccumulator    = 0.0f;
+        sessionNearMisses   = 0;
 
         collisionManager.clear();
         player.reset();
@@ -135,10 +152,13 @@ public class GameManager implements Disposable, GameEvents.GameEventListener {
 
     /**
      * Swaps the active player car at runtime without restarting the session.
-     * Safe to call from the Garage screen.
      */
     public void selectPlayerCar(CarDefinition carDef) {
-        player.setCarDefinition(carDef);
+        selectPlayerCarWithUpgrades(carDef, 0, 0, 0, 0);
+    }
+
+    public void selectPlayerCarWithUpgrades(CarDefinition carDef, int engineTier, int handlingTier, int armourTier, int nitroTier) {
+        player.setCarDefinitionWithUpgrades(carDef, engineTier, handlingTier, armourTier, nitroTier);
         player.reset();
     }
 
@@ -165,15 +185,16 @@ public class GameManager implements Disposable, GameEvents.GameEventListener {
         chaseCamera.resize(width, height);
     }
 
-    public PlayerEntity    getPlayer()         { return player; }
-    public PlayerController getPlayerController() { return playerController; }
-    public CollisionManager getCollisionManager() { return collisionManager; }
-    public EnemyManager    getEnemyManager()   { return enemyManager; }
-    public WorldManager    getWorldManager()   { return worldManager; }
-    public ChaseCamera     getChaseCamera()    { return chaseCamera; }
-    public ModelRegistry   getModelRegistry()  { return modelRegistry; }
-    public long            getCurrentScore()   { return currentScore; }
-    public boolean         isGameOver()        { return isGameOverTriggered; }
+    public PlayerEntity    getPlayer()           { return player; }
+    public PlayerController getPlayerController(){ return playerController; }
+    public CollisionManager getCollisionManager(){ return collisionManager; }
+    public EnemyManager    getEnemyManager()     { return enemyManager; }
+    public WorldManager    getWorldManager()     { return worldManager; }
+    public ChaseCamera     getChaseCamera()      { return chaseCamera; }
+    public ModelRegistry   getModelRegistry()    { return modelRegistry; }
+    public long            getCurrentScore()     { return currentScore; }
+    public int             getSessionNearMisses(){ return sessionNearMisses; }
+    public boolean         isGameOver()          { return isGameOverTriggered; }
 
     @Override
     public void dispose() {

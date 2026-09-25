@@ -25,7 +25,16 @@ public class TouchGestureController extends InputAdapter implements IInputContro
     private final Vector2 touchStart = new Vector2();
     private final Vector2 touchCurrent = new Vector2();
     private static final float SWIPE_THRESHOLD_X = 50.0f;
-    private static final float STEER_SENSITIVITY = 0.0035f;
+    private static final float BASE_STEER_SENSITIVITY = 0.0035f;
+    private float sensitivityMultiplier = 1.0f;
+
+    public void setSensitivity(float multiplier) {
+        this.sensitivityMultiplier = Math.max(0.2f, Math.min(3.0f, multiplier));
+    }
+
+    public float getSensitivity() {
+        return sensitivityMultiplier;
+    }
 
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
@@ -52,8 +61,8 @@ public class TouchGestureController extends InputAdapter implements IInputContro
             touchCurrent.set(screenX, screenY);
             float deltaX = touchCurrent.x - touchStart.x;
             
-            // Continuous drag steering
-            targetSteer = MathUtils.clamp(deltaX * STEER_SENSITIVITY, -1.0f, 1.0f);
+            // Continuous drag steering scaled by sensitivity
+            targetSteer = MathUtils.clamp(deltaX * BASE_STEER_SENSITIVITY * sensitivityMultiplier, -1.0f, 1.0f);
             
             // Rapid swipe detection
             if (Math.abs(deltaX) > SWIPE_THRESHOLD_X * 2.0f) {

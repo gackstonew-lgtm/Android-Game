@@ -57,8 +57,12 @@ public class PlayerEntity implements ICollidable, Disposable {
      * Swaps the active car definition and 3D model instance at runtime.
      */
     public void setCarDefinition(CarDefinition carDef) {
+        setCarDefinitionWithUpgrades(carDef, 0, 0, 0, 0);
+    }
+
+    public void setCarDefinitionWithUpgrades(CarDefinition carDef, int engineTier, int handlingTier, int armourTier, int nitroTier) {
         this.currentCar = carDef != null ? carDef : CarRegistry.getPlayerCars().first();
-        this.state.applyCarDefinition(this.currentCar);
+        this.state.applyCarDefinitionWithUpgrades(this.currentCar, engineTier, handlingTier, armourTier, nitroTier);
 
         if (modelRegistry != null) {
             this.modelInstance = modelRegistry.createInstance(this.currentCar.getModelKey());

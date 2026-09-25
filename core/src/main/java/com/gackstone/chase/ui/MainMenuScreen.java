@@ -14,10 +14,11 @@ import com.gackstone.chase.ChaseGame;
 import com.gackstone.chase.audio.SoundRegistry;
 import com.gackstone.chase.core.GameConfig;
 import com.gackstone.chase.core.GameState;
+import com.gackstone.chase.save.GamePreferencesData;
 
 /**
  * Main Menu Screen offering PLAY → GARAGE → SETTINGS → EXIT navigation,
- * plus best score and distance statistics.
+ * plus best score and distance statistics with safe state machine transitions.
  */
 public class MainMenuScreen extends ScreenAdapter {
 
@@ -41,9 +42,16 @@ public class MainMenuScreen extends ScreenAdapter {
         Label titleLabel    = new Label("CHASE", game.getUiManager().getSkin(), "title");
         Label subtitleLabel = new Label("HIGH SPEED 3D PURSUIT", game.getUiManager().getSkin(), "default");
 
-        long  highScore = game.getSaveManager().getData().getHighScore();
-        float highDist  = game.getSaveManager().getData().getHighestDistance();
-        int   coins     = game.getSaveManager().getData().getCoins();
+        long  highScore = 0;
+        float highDist  = 0;
+        int   coins     = 0;
+        if (game.getSaveManager() != null && game.getSaveManager().getData() != null) {
+            GamePreferencesData data = game.getSaveManager().getData();
+            highScore = data.getHighScore();
+            highDist  = data.getHighestDistance();
+            coins     = data.getCoins();
+        }
+
         Label statsLabel = new Label(
                 String.format("BEST: %d pts  |  %.0fm  |  COINS: %d", highScore, highDist, coins),
                 game.getUiManager().getSkin(), "default");
@@ -53,27 +61,45 @@ public class MainMenuScreen extends ScreenAdapter {
         TextButton settingsBtn = new TextButton("SETTINGS", game.getUiManager().getSkin());
         TextButton exitBtn     = new TextButton("EXIT",     game.getUiManager().getSkin(), "danger");
 
+        // PLAY routes through Garage so player can select car & track
         playBtn.addListener(new ChangeListener() {
             @Override public void changed(ChangeEvent e, Actor a) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
-                game.getStateMachine().transitionTo(GameState.GARAGE);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
+                if (game.getStateMachine() != null) {
+                    game.getStateMachine().transitionTo(GameState.GARAGE);
+                }
             }
         });
+
         garageBtn.addListener(new ChangeListener() {
             @Override public void changed(ChangeEvent e, Actor a) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
-                game.getStateMachine().transitionTo(GameState.GARAGE);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
+                if (game.getStateMachine() != null) {
+                    game.getStateMachine().transitionTo(GameState.GARAGE);
+                }
             }
         });
+
         settingsBtn.addListener(new ChangeListener() {
             @Override public void changed(ChangeEvent e, Actor a) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
-                game.getStateMachine().transitionTo(GameState.SETTINGS);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
+                if (game.getStateMachine() != null) {
+                    game.getStateMachine().transitionTo(GameState.SETTINGS);
+                }
             }
         });
+
         exitBtn.addListener(new ChangeListener() {
             @Override public void changed(ChangeEvent e, Actor a) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
                 Gdx.app.exit();
             }
         });
@@ -95,7 +121,18 @@ public class MainMenuScreen extends ScreenAdapter {
         stage.draw();
     }
 
-    @Override public void resize(int w, int h) { stage.getViewport().update(w, h, true); }
-    @Override public void hide()               { Gdx.input.setInputProcessor(null); }
-    @Override public void dispose()            { stage.dispose(); }
+    @Override
+    public void resize(int w, int h) {
+        stage.getViewport().update(w, h, true);
+    }
+
+    @Override
+    public void hide() {
+        Gdx.input.setInputProcessor(null);
+    }
+
+    @Override
+    public void dispose() {
+        stage.dispose();
+    }
 }

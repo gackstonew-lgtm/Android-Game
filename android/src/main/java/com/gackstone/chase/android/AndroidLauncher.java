@@ -26,7 +26,7 @@ public class AndroidLauncher extends AndroidApplication {
 
         // Configure LibGDX Android Runtime
         AndroidApplicationConfiguration config = new AndroidApplicationConfiguration();
-        config.useGL30 = true;
+        config.useGL30 = false; // GLES 2.0 ensures 100% universal Android hardware compatibility
         config.useAccelerometer = false;
         config.useCompass = false;
         config.useGyroscope = false;

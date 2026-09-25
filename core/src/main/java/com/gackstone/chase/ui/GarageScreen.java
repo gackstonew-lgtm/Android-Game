@@ -18,11 +18,11 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.gackstone.chase.ChaseGame;
+import com.gackstone.chase.assets.ModelRegistry;
 import com.gackstone.chase.audio.SoundRegistry;
 import com.gackstone.chase.cars.CarDefinition;
 import com.gackstone.chase.cars.CarRegistry;
@@ -35,7 +35,7 @@ import java.util.Locale;
 /**
  * Premium Mobile Racing Garage & Customization Screen.
  *
- * <p>Layout & Hierarchy (matching reference design):
+ * <p>Layout & Hierarchy:
  * <ul>
  *   <li><b>Center 3D Studio:</b> Prominent real-time 3D car viewport with studio lighting and touch orbit.
  *   <li><b>Top Bar:</b> Title badge ("MODIFICATION"), currency pill counter, and close button.
@@ -59,8 +59,8 @@ public class GarageScreen extends ScreenAdapter {
     // Active Selection State
     private CarDefinition selectedCar;
     private int selectedCarIndex = 0;
-    private int activeCategoryIndex = 5; // Default: Livery / Decals (index 5 matching reference)
-    private int activeCarouselIndex = 1; // Default item index
+    private int activeCategoryIndex = 5; // Default: Livery / Decals (index 5)
+    private int activeCarouselIndex = 1;
 
     // Category Definitions
     private static final String[] CATEGORY_NAMES = {
@@ -75,7 +75,6 @@ public class GarageScreen extends ScreenAdapter {
             "icon-gear",   "icon-brake"
     };
 
-    // UI Dynamic References for zero-allocation rebuilds
     private Table leftRailTable;
     private Table detailCardTable;
     private Table carouselTable;
@@ -85,11 +84,14 @@ public class GarageScreen extends ScreenAdapter {
         this.game = game;
         this.stage = new Stage(new ExtendViewport(GameConfig.VIRTUAL_WIDTH, GameConfig.VIRTUAL_HEIGHT));
 
-        // Initialize 3D Preview Renderer with ModelRegistry
-        this.previewRenderer = new CarPreviewRenderer(game.getGameManager().getModelRegistry());
+        ModelRegistry registry = (game.getGameManager() != null) ? game.getGameManager().getModelRegistry() : null;
+        this.previewRenderer = new CarPreviewRenderer(registry);
 
-        // Resolve current saved car selection
-        String savedCarId = game.getSaveManager().getData().getSelectedCarId();
+        String savedCarId = null;
+        if (game.getSaveManager() != null && game.getSaveManager().getData() != null) {
+            savedCarId = game.getSaveManager().getData().getSelectedCarId();
+        }
+
         Array<CarDefinition> cars = CarRegistry.getPlayerCars();
         selectedCar = CarRegistry.getById(savedCarId);
         for (int i = 0; i < cars.size; i++) {
@@ -111,17 +113,17 @@ public class GarageScreen extends ScreenAdapter {
     }
 
     private void buildUI() {
-        // ── Full-screen Background Watermark Actor ────────────────────────────
+        // Full-screen Background Watermark Actor
         stage.addActor(new Actor() {
             private final BitmapFont bgFont = game.getUiManager().getDefaultFont();
             private final GlyphLayout layout = new GlyphLayout();
 
             @Override
             public void draw(Batch batch, float parentAlpha) {
+                if (bgFont == null) return;
                 float oldScaleX = bgFont.getData().scaleX;
                 float oldScaleY = bgFont.getData().scaleY;
 
-                // Subtle studio background watermark text
                 bgFont.getData().setScale(4.5f);
                 bgFont.setColor(0.12f, 0.16f, 0.24f, 0.18f);
                 layout.setText(bgFont, "AUTO MODDING");
@@ -129,7 +131,6 @@ public class GarageScreen extends ScreenAdapter {
                         (stage.getWidth() - layout.width) * 0.5f,
                         stage.getHeight() * 0.88f);
 
-                // Footer watermark
                 bgFont.getData().setScale(0.85f);
                 bgFont.setColor(0.4f, 0.45f, 0.55f, 0.7f);
                 bgFont.draw(batch, "* REAL-TIME 3D IN-ENGINE PREVIEW", 36, 28);
@@ -138,13 +139,12 @@ public class GarageScreen extends ScreenAdapter {
             }
         });
 
-        // ── Interactive Touch Layer for 3D Car Orbit ───────────────────────────
+        // Interactive Touch Layer for 3D Car Orbit
         Table touchInterceptor = new Table();
         touchInterceptor.setFillParent(true);
         touchInterceptor.addListener(new InputListener() {
             @Override
             public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
-                // Ignore touches over left rail and bottom panels
                 if (x > 280 && x < stage.getWidth() - 280 && y > 180 && y < stage.getHeight() - 90) {
                     previewRenderer.handleTouchDown(x);
                     return true;
@@ -164,46 +164,38 @@ public class GarageScreen extends ScreenAdapter {
         });
         stage.addActor(touchInterceptor);
 
-        // ── Main UI Layout Structure ──────────────────────────────────────────
         Table root = new Table();
         root.setFillParent(true);
         root.top().left();
         root.pad(24);
         stage.addActor(root);
 
-        // 1. TOP BAR ROW
+        // 1. Top Bar
         Table topBar = buildTopBar();
         root.add(topBar).expandX().fillX().colspan(2).padBottom(12).row();
 
-        // 2. MIDDLE AREA (Left Rail + Right Radar Chart)
+        // 2. Middle Area
         Table middleArea = new Table();
 
-        // Left Category Rail
         leftRailTable = new Table();
         buildCategoryRail(leftRailTable);
         middleArea.add(leftRailTable).width(250).top().left();
 
-        // Center spacer for 3D car viewport
         middleArea.add().expandX().fillX();
 
-        // Right Radar Chart + Quick Action Buttons
         Table rightTelemetryTable = buildRightTelemetry();
         middleArea.add(rightTelemetryTable).width(280).top().right();
 
         root.add(middleArea).expand().fill().colspan(2).row();
 
-        // 3. BOTTOM ROW (Detail Panel + Carousel)
+        // 3. Bottom Row
         Table bottomRow = buildBottomRow();
         root.add(bottomRow).expandX().fillX().colspan(2).padTop(8);
     }
 
-    /**
-     * Builds the top navigation bar with title badge, currency counter, and close button.
-     */
     private Table buildTopBar() {
         Table topBar = new Table();
 
-        // Top-Left: Garage Badge & Title
         Table titlePill = new Table();
         titlePill.setBackground(game.getUiManager().getSkin().getDrawable("badge-pill"));
         titlePill.pad(6, 14, 6, 18);
@@ -217,11 +209,8 @@ public class GarageScreen extends ScreenAdapter {
         titlePill.add(titleLabel);
 
         topBar.add(titlePill).left();
-
-        // Top spacer
         topBar.add().expandX();
 
-        // Top-Right: Currency Counter Pill
         Table currencyPill = new Table();
         currencyPill.setBackground(game.getUiManager().getSkin().getDrawable("currency-pill"));
         currencyPill.pad(4, 12, 4, 16);
@@ -230,20 +219,26 @@ public class GarageScreen extends ScreenAdapter {
         coinIcon.setScaling(Scaling.fit);
         currencyPill.add(coinIcon).size(22, 22).padRight(8);
 
-        long coins = game.getSaveManager().getData().getCoins();
+        long coins = 0;
+        if (game.getSaveManager() != null && game.getSaveManager().getData() != null) {
+            coins = game.getSaveManager().getData().getCoins();
+        }
         String formattedCoins = NumberFormat.getNumberInstance(Locale.US).format(coins);
         currencyLabel = new Label(formattedCoins, game.getUiManager().getSkin(), "currency");
         currencyPill.add(currencyLabel);
 
         topBar.add(currencyPill).padRight(14);
 
-        // Top-Right: Close ("X") Button
         TextButton closeBtn = new TextButton("X", game.getUiManager().getSkin(), "close-btn");
         closeBtn.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
-                game.getStateMachine().transitionTo(GameState.MAIN_MENU);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
+                if (game.getStateMachine() != null) {
+                    game.getStateMachine().transitionTo(GameState.MAIN_MENU);
+                }
             }
         });
         topBar.add(closeBtn).size(40, 40).right();
@@ -251,13 +246,9 @@ public class GarageScreen extends ScreenAdapter {
         return topBar;
     }
 
-    /**
-     * Builds the 2-column vertical category icon rail on the left.
-     */
     private void buildCategoryRail(Table container) {
         container.clear();
 
-        // Header Tab Pill
         Table headerPill = new Table();
         headerPill.setBackground(game.getUiManager().getSkin().getDrawable("badge-pill"));
         headerPill.pad(5, 12, 5, 12);
@@ -266,7 +257,6 @@ public class GarageScreen extends ScreenAdapter {
         headerPill.add(headerLabel);
         container.add(headerPill).expandX().left().padBottom(10).row();
 
-        // 2-Column Grid for Category Icons
         Table grid = new Table();
         grid.defaults().size(56, 56).pad(4);
 
@@ -280,7 +270,7 @@ public class GarageScreen extends ScreenAdapter {
             Image iconImg = new Image(game.getUiManager().getSkin().getDrawable(CATEGORY_ICON_KEYS[i]));
             iconImg.setScaling(Scaling.fit);
             if (isSelected) {
-                iconImg.setColor(new Color(0.08f, 0.10f, 0.15f, 1.0f)); // Dark icon on orange
+                iconImg.setColor(new Color(0.08f, 0.10f, 0.15f, 1.0f));
             } else {
                 iconImg.setColor(Color.WHITE);
             }
@@ -289,7 +279,9 @@ public class GarageScreen extends ScreenAdapter {
             catBtn.addListener(new ClickListener() {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
-                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                    if (game.getAudioManager() != null) {
+                        game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                    }
                     activeCategoryIndex = catIdx;
                     buildCategoryRail(leftRailTable);
                     refreshDetailCard();
@@ -306,22 +298,16 @@ public class GarageScreen extends ScreenAdapter {
         container.add(grid).left();
     }
 
-    /**
-     * Builds the right-side 5-axis spider chart telemetry panel and floating quick action buttons.
-     */
     private Table buildRightTelemetry() {
         Table table = new Table();
         table.top().right();
 
-        // 5-Axis Spider Chart Actor
         radarChart = new RadarChartActor(game.getUiManager().getSmallFont());
         table.add(radarChart).size(250, 250).padBottom(12).row();
 
-        // Quick Action Floating Buttons (360 Spin & Info Checklist)
         Table quickActions = new Table();
         quickActions.defaults().size(44, 44).pad(6);
 
-        // Spin 360 Button
         Button rotateBtn = new Button(game.getUiManager().getSkin(), "circle-action");
         Image rotIcon = new Image(game.getUiManager().getSkin().getDrawable("icon-rotate"));
         rotIcon.setScaling(Scaling.fit);
@@ -329,13 +315,14 @@ public class GarageScreen extends ScreenAdapter {
         rotateBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
                 previewRenderer.triggerSpin360();
             }
         });
         quickActions.add(rotateBtn);
 
-        // Spec / Info Button
         Button infoBtn = new Button(game.getUiManager().getSkin(), "circle-action");
         Image infoIcon = new Image(game.getUiManager().getSkin().getDrawable("icon-info"));
         infoIcon.setScaling(Scaling.fit);
@@ -343,8 +330,9 @@ public class GarageScreen extends ScreenAdapter {
         infoBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
-                // Toggle upgrade preview boost in radar chart
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
                 toggleUpgradePreview();
             }
         });
@@ -355,21 +343,16 @@ public class GarageScreen extends ScreenAdapter {
         return table;
     }
 
-    /**
-     * Builds the bottom row containing the glassmorphic detail card and the item carousel.
-     */
     private Table buildBottomRow() {
         Table bottom = new Table();
         bottom.left().bottom();
 
-        // Left: Item Detail Card
         detailCardTable = new Table();
         detailCardTable.setBackground(game.getUiManager().getSkin().getDrawable("glass-panel"));
         detailCardTable.pad(14, 18, 14, 18);
         refreshDetailCard();
         bottom.add(detailCardTable).width(360).height(145).left().padRight(16);
 
-        // Center / Right: Horizontal Item Carousel
         carouselTable = new Table();
         refreshCarousel();
         bottom.add(carouselTable).expandX().left();
@@ -377,21 +360,22 @@ public class GarageScreen extends ScreenAdapter {
         return bottom;
     }
 
-    /**
-     * Populates the detail card with the current item name, price pill, description, and primary button.
-     */
     private void refreshDetailCard() {
         detailCardTable.clear();
 
         Array<CarDefinition> cars = CarRegistry.getPlayerCars();
         CarDefinition activeCar = cars.get(selectedCarIndex);
 
-        boolean isOwned = activeCar.isUnlockedByDefault() ||
-                game.getSaveManager().getData().getCoins() >= activeCar.getUnlockPrice();
-        boolean isCurrentSelected = activeCar.getId().equals(
-                game.getSaveManager().getData().getSelectedCarId());
+        long userCoins = 0;
+        String selectedCarId = "";
+        if (game.getSaveManager() != null && game.getSaveManager().getData() != null) {
+            userCoins = game.getSaveManager().getData().getCoins();
+            selectedCarId = game.getSaveManager().getData().getSelectedCarId();
+        }
 
-        // Header Row: Item Name Badge + Price Pill
+        boolean isOwned = activeCar.isUnlockedByDefault() || userCoins >= activeCar.getUnlockPrice();
+        boolean isCurrentSelected = activeCar.getId().equals(selectedCarId);
+
         Table headerRow = new Table();
 
         Table nameBadge = new Table();
@@ -408,7 +392,6 @@ public class GarageScreen extends ScreenAdapter {
 
         headerRow.add().expandX();
 
-        // Price Pill
         Table pricePill = new Table();
         pricePill.setBackground(game.getUiManager().getSkin().getDrawable("currency-pill"));
         pricePill.pad(3, 8, 3, 10);
@@ -424,12 +407,10 @@ public class GarageScreen extends ScreenAdapter {
 
         detailCardTable.add(headerRow).expandX().fillX().padBottom(6).row();
 
-        // Descriptive Flavour Text
         Label descLabel = new Label(activeCar.getDescription(), game.getUiManager().getSkin(), "desc");
         descLabel.setWrap(true);
         detailCardTable.add(descLabel).expandX().fillX().padBottom(8).row();
 
-        // Action Buttons Row: Select Car / Buy / Select Track
         Table actionRow = new Table();
 
         TextButton selectBtn = new TextButton(isCurrentSelected ? "INSTALLED" : "SELECT",
@@ -447,8 +428,12 @@ public class GarageScreen extends ScreenAdapter {
         trackBtn.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
-                game.getStateMachine().transitionTo(GameState.ENV_SELECT);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
+                if (game.getStateMachine() != null) {
+                    game.getStateMachine().transitionTo(GameState.ENV_SELECT);
+                }
             }
         });
         actionRow.add(trackBtn).size(150, 38).left();
@@ -456,24 +441,21 @@ public class GarageScreen extends ScreenAdapter {
         detailCardTable.add(actionRow).left();
     }
 
-    /**
-     * Refreshes the bottom item selector carousel with left/right arrows and selectable cards.
-     */
     private void refreshCarousel() {
         carouselTable.clear();
 
-        // Left Arrow Button
         TextButton prevBtn = new TextButton("<", game.getUiManager().getSkin());
         prevBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
                 cycleCar(-1);
             }
         });
         carouselTable.add(prevBtn).size(36, 68).padRight(8);
 
-        // Selectable Item Cards
         Array<CarDefinition> cars = CarRegistry.getPlayerCars();
         for (int i = 0; i < cars.size; i++) {
             final int carIdx = i;
@@ -486,7 +468,6 @@ public class GarageScreen extends ScreenAdapter {
 
             Table cardContent = new Table();
 
-            // Card Thumbnail Icon
             String iconKey = (i == 0) ? "icon-none" : (i == 1 ? "icon-livery" : "icon-wheel");
             Image itemIcon = new Image(game.getUiManager().getSkin().getDrawable(iconKey));
             itemIcon.setScaling(Scaling.fit);
@@ -497,7 +478,6 @@ public class GarageScreen extends ScreenAdapter {
             }
             cardContent.add(itemIcon).size(42, 42).padBottom(4).row();
 
-            // Card Mini Label
             Label nameLbl = new Label(car.getDisplayName().split(" ")[0],
                     game.getUiManager().getSkin(), "badge");
             nameLbl.setColor(isSelected ? Color.WHITE : Color.LIGHT_GRAY);
@@ -508,7 +488,9 @@ public class GarageScreen extends ScreenAdapter {
             cardBtn.addListener(new ClickListener() {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
-                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                    if (game.getAudioManager() != null) {
+                        game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                    }
                     selectedCarIndex = carIdx;
                     selectedCar = cars.get(carIdx);
                     previewRenderer.setCar(selectedCar);
@@ -521,12 +503,13 @@ public class GarageScreen extends ScreenAdapter {
             carouselTable.add(cardBtn).size(78, 78).padRight(8);
         }
 
-        // Right Arrow Button
         TextButton nextBtn = new TextButton(">", game.getUiManager().getSkin());
         nextBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
                 cycleCar(1);
             }
         });
@@ -546,7 +529,6 @@ public class GarageScreen extends ScreenAdapter {
     private void updateCarTelemetry() {
         if (radarChart == null || selectedCar == null) return;
 
-        // Normalize stats to [0.2 - 1.0] range for clear radar chart visualization
         float torque = selectedCar.getAcceleration() / 25.0f;
         float weight = selectedCar.getMass() / 2600.0f;
         float grip   = selectedCar.getHandling() / 25.0f;
@@ -555,7 +537,6 @@ public class GarageScreen extends ScreenAdapter {
 
         radarChart.setStats(torque, weight, grip, brake, speed);
 
-        // Preview upgraded potential specs (+15% tuning)
         radarChart.setUpgradePreview(
                 Math.min(1.0f, torque * 1.18f),
                 Math.min(1.0f, weight * 0.92f),
@@ -570,10 +551,14 @@ public class GarageScreen extends ScreenAdapter {
     }
 
     private void applyCarSelection(CarDefinition car) {
-        game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+        if (game.getAudioManager() != null) {
+            game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+        }
         selectedCar = car;
-        game.getSaveManager().getData().setSelectedCarId(car.getId());
-        game.getSaveManager().save();
+        if (game.getSaveManager() != null && game.getSaveManager().getData() != null) {
+            game.getSaveManager().getData().setSelectedCarId(car.getId());
+            game.getSaveManager().save();
+        }
 
         if (game.getGameManager() != null) {
             game.getGameManager().selectPlayerCar(car);
@@ -585,15 +570,12 @@ public class GarageScreen extends ScreenAdapter {
 
     @Override
     public void render(float delta) {
-        // 1. Dark futuristic background clear
         Gdx.gl.glClearColor(0.04f, 0.06f, 0.09f, 1.0f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
 
-        // 2. Update & Render 3D Car Studio Pedestal
         previewRenderer.update(delta);
         previewRenderer.render();
 
-        // 3. Render 2D Scene2D UI Stage
         stage.act(Math.min(delta, 1 / 30f));
         stage.draw();
     }

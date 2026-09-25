@@ -2,6 +2,7 @@ package com.gackstone.chase.ui;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -35,7 +36,9 @@ public class EnvSelectScreen extends ScreenAdapter {
     public EnvSelectScreen(ChaseGame game) {
         this.game  = game;
         this.stage = new Stage(new ExtendViewport(GameConfig.VIRTUAL_WIDTH, GameConfig.VIRTUAL_HEIGHT));
-        selectedThemeId = game.getSaveManager().getData().getSelectedThemeId();
+        if (game.getSaveManager() != null && game.getSaveManager().getData() != null) {
+            selectedThemeId = game.getSaveManager().getData().getSelectedThemeId();
+        }
         if (selectedThemeId == null || selectedThemeId.isEmpty()) {
             selectedThemeId = EnvironmentRegistry.THEME_NEON_CITY;
         }
@@ -58,8 +61,12 @@ public class EnvSelectScreen extends ScreenAdapter {
         TextButton backBtn = new TextButton("< GARAGE", game.getUiManager().getSkin());
         backBtn.addListener(new ChangeListener() {
             @Override public void changed(ChangeEvent e, Actor a) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
-                game.getStateMachine().transitionTo(GameState.GARAGE);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
+                if (game.getStateMachine() != null) {
+                    game.getStateMachine().transitionTo(GameState.GARAGE);
+                }
             }
         });
 
@@ -74,7 +81,9 @@ public class EnvSelectScreen extends ScreenAdapter {
         TextButton playBtn = new TextButton("PLAY  ▶", game.getUiManager().getSkin());
         playBtn.addListener(new ChangeListener() {
             @Override public void changed(ChangeEvent e, Actor a) {
-                game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                if (game.getAudioManager() != null) {
+                    game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+                }
                 applySelectionAndPlay();
             }
         });
@@ -95,7 +104,7 @@ public class EnvSelectScreen extends ScreenAdapter {
         card.add(desc).left().padBottom(8).row();
 
         // Atmosphere colour swatch using fog colour
-        com.badlogic.gdx.graphics.Color fogCol = theme.getFogColor();
+        Color fogCol = theme.getFogColor();
         Label swatch = new Label("  FOG: " + toHex(fogCol) + "  |  DIST: "
                 + (int) theme.getFogNear() + "–" + (int) theme.getFogFar() + "m",
                 game.getUiManager().getSkin(), "default");
@@ -116,10 +125,14 @@ public class EnvSelectScreen extends ScreenAdapter {
     }
 
     private void selectTheme(String themeId) {
-        game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+        if (game.getAudioManager() != null) {
+            game.getAudioManager().playSound(SoundRegistry.SND_UI_CLICK, SoundRegistry.AudioCategory.UI);
+        }
         selectedThemeId = themeId;
-        game.getSaveManager().getData().setSelectedThemeId(themeId);
-        game.getSaveManager().save();
+        if (game.getSaveManager() != null && game.getSaveManager().getData() != null) {
+            game.getSaveManager().getData().setSelectedThemeId(themeId);
+            game.getSaveManager().save();
+        }
 
         // Apply immediately to running world renderer if session exists
         if (game.getGameManager() != null) {
@@ -134,18 +147,21 @@ public class EnvSelectScreen extends ScreenAdapter {
         if (game.getGameManager() != null) {
             game.getGameManager().selectEnvironment(selectedThemeId);
         }
-        game.getStateMachine().transitionTo(GameState.PLAYING);
+        if (game.getStateMachine() != null) {
+            game.getStateMachine().transitionTo(GameState.PLAYING);
+        }
     }
 
     /** Convert a libGDX Color to a compact hex string for display. */
-    private static String toHex(com.badlogic.gdx.graphics.Color c) {
+    private static String toHex(Color c) {
         return String.format("#%02X%02X%02X",
                 (int)(c.r * 255), (int)(c.g * 255), (int)(c.b * 255));
     }
 
     @Override
     public void render(float delta) {
-        com.badlogic.gdx.graphics.Color sky = EnvironmentRegistry.getById(selectedThemeId).getSkyClearColor();
+        EnvironmentTheme currentTheme = EnvironmentRegistry.getById(selectedThemeId);
+        Color sky = (currentTheme != null) ? currentTheme.getSkyClearColor() : Color.DARK_GRAY;
         Gdx.gl.glClearColor(sky.r * 0.3f, sky.g * 0.3f, sky.b * 0.3f, 1.0f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         stage.act(Math.min(delta, 1 / 30f));

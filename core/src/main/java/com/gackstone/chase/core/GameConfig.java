@@ -1,11 +1,7 @@
 package com.gackstone.chase.core;
 
 /**
- * Global game balance, physics, camera, display, and asset configuration.
- *
- * <p>All tunable constants live here so nothing is scattered as magic numbers
- * across the codebase. Systems reference these constants directly; changing a
- * single value here re-tunes the entire game.
+ * Global game balance, physics, camera, display, upgrade tuning, and asset configuration.
  */
 public final class GameConfig {
 
@@ -13,7 +9,7 @@ public final class GameConfig {
 
     // ── Application ───────────────────────────────────────────────────────────
     public static final String GAME_NAME    = "Chase";
-    public static final String GAME_VERSION = "2.0.0";
+    public static final String GAME_VERSION = "2.1.0";
 
     // ── World / Road Geometry ─────────────────────────────────────────────────
     public static final float ROAD_WIDTH          = 14.0f;
@@ -45,13 +41,26 @@ public final class GameConfig {
     public static final float CAMERA_FOLLOW_SPEED  = 7.5f;
     public static final float CAMERA_ROTATION_SPEED = 8.0f;
     public static final float CAMERA_FOV           = 67.0f;
+    public static final float CAMERA_FOV_BOOST     = 78.0f;
     public static final float CAMERA_NEAR          = 0.5f;
     public static final float CAMERA_FAR           = 320.0f;
 
-    // ── Scoring / Difficulty ──────────────────────────────────────────────────
+    // ── Scoring / Difficulty / Near-Miss ─────────────────────────────────────
     public static final float SCORE_PER_METER           = 1.0f;
     public static final float CLOSE_CALL_BONUS_SCORE    = 250.0f;
+    public static final float NEAR_MISS_LATERAL_DIST    = 2.2f;
+    public static final float NEAR_MISS_FORWARD_DIST    = 3.8f;
     public static final float SPEED_DIFFICULTY_SCALING  = 0.005f;
+
+    // ── Upgrades Tuning (0 - 5 tiers) ─────────────────────────────────────────
+    public static final int   MAX_UPGRADE_TIER          = 5;
+    public static final int   UPGRADE_COST_BASE         = 300;
+    public static final int   UPGRADE_COST_PER_TIER     = 250;
+    public static final float UPGRADE_SPEED_BOOST_PER_TIER   = 0.04f; // +4% max speed per tier
+    public static final float UPGRADE_ACCEL_BOOST_PER_TIER   = 0.06f; // +6% accel per tier
+    public static final float UPGRADE_HANDLING_BOOST_PER_TIER= 0.05f; // +5% grip per tier
+    public static final float UPGRADE_ARMOUR_BOOST_PER_TIER  = 0.08f; // +8% max hp per tier
+    public static final float UPGRADE_NITRO_BOOST_PER_TIER   = 0.10f; // +10% nitro capacity/regen per tier
 
     // ── Virtual Viewport ─────────────────────────────────────────────────────
     public static final float VIRTUAL_WIDTH  = 1280.0f;
@@ -60,14 +69,14 @@ public final class GameConfig {
     // ── Graphics Quality Presets ──────────────────────────────────────────────
     public enum GraphicsQuality { LOW, MEDIUM, HIGH }
 
+    // ── Control Scheme ────────────────────────────────────────────────────────
+    public enum ControlScheme { TOUCH_DRAG, TOUCH_BUTTONS, TILT }
+
     // ── Prop / Traffic Draw Distance ─────────────────────────────────────────
-    /** Props beyond this distance ahead of the player are not spawned. */
     public static final float PROP_DRAW_DISTANCE    = 220.0f;
-    /** Traffic vehicles beyond this distance behind player are recycled. */
     public static final float TRAFFIC_CULL_DISTANCE = 30.0f;
 
     // ── Garage / Economy ─────────────────────────────────────────────────────
-    /** Starting coins awarded to new players so they can buy one upgrade immediately. */
     public static final int PLAYER_STARTING_COINS = 500;
 
     // ── Audio ─────────────────────────────────────────────────────────────────

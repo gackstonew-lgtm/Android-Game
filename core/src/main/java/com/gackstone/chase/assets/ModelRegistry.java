@@ -24,6 +24,7 @@ public class ModelRegistry implements Disposable {
     public static final String KEY_PLAYER_PHANTOM_GT = "player_phantom_gt";
     public static final String KEY_PLAYER_APEX_MUSCLE = "player_apex_muscle";
     public static final String KEY_PLAYER_VANGUARD = "player_vanguard_armored";
+    public static final String KEY_PLAYER_SHADOWBLADE = "player_shadowblade_ex";
 
     public static final String KEY_ENEMY_PATROL = "enemy_patrol_cruiser";
     public static final String KEY_ENEMY_TACTICAL_SUV = "enemy_tactical_suv";
@@ -83,6 +84,12 @@ public class ModelRegistry implements Disposable {
                 new Color(0.85f, 0.2f, 0.25f, 1.0f),
                 new Color(0.18f, 0.2f, 0.24f, 1.0f),
                 new Color(1.0f, 0.1f, 0.1f, 1.0f)
+        ));
+
+        cachedModels.put(KEY_PLAYER_SHADOWBLADE, proceduralFactory.createShadowbladeHypercar(
+                new Color(0.6f, 0.15f, 0.9f, 1.0f),
+                new Color(0.12f, 0.12f, 0.16f, 1.0f),
+                new Color(1.0f, 0.0f, 0.8f, 1.0f)
         ));
 
         // 2. Enemy Chaser Cars

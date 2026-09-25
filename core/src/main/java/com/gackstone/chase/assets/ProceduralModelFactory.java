@@ -220,6 +220,58 @@ public class ProceduralModelFactory implements Disposable {
     }
 
     /**
+     * Creates an ultra-aerodynamic carbon-fiber hypercar (Shadowblade EX).
+     */
+    public Model createShadowbladeHypercar(Color primaryColor, Color secondaryColor, Color glowColor) {
+        modelBuilder.begin();
+
+        Material bodyMat = new Material(
+                ColorAttribute.createDiffuse(primaryColor != null ? primaryColor : new Color(0.55f, 0.1f, 0.85f, 1.0f)),
+                ColorAttribute.createSpecular(Color.WHITE)
+        );
+        MeshPartBuilder bodyBuilder = modelBuilder.part("hyper_body", GL20.GL_TRIANGLES, VERTEX_ATTRIBUTES, bodyMat);
+        BoxShapeBuilder.build(bodyBuilder, 0, 0.24f, 0, 1.48f, 0.26f, 3.4f);
+        BoxShapeBuilder.build(bodyBuilder, 0, 0.18f, 1.6f, 1.38f, 0.18f, 0.6f);
+        BoxShapeBuilder.build(bodyBuilder, 0, 0.22f, -1.55f, 1.42f, 0.24f, 0.5f);
+
+        Material glassMat = new Material(
+                ColorAttribute.createDiffuse(new Color(0.04f, 0.06f, 0.10f, 0.95f)),
+                ColorAttribute.createSpecular(new Color(0.9f, 0.6f, 1.0f, 1.0f))
+        );
+        MeshPartBuilder glassBuilder = modelBuilder.part("cabin", GL20.GL_TRIANGLES, VERTEX_ATTRIBUTES, glassMat);
+        BoxShapeBuilder.build(glassBuilder, 0, 0.46f, -0.05f, 1.08f, 0.30f, 1.6f);
+
+        Material trimMat = new Material(
+                ColorAttribute.createDiffuse(secondaryColor != null ? secondaryColor : new Color(0.1f, 0.1f, 0.14f, 1.0f)),
+                ColorAttribute.createSpecular(Color.LIGHT_GRAY)
+        );
+        MeshPartBuilder trimBuilder = modelBuilder.part("trim", GL20.GL_TRIANGLES, VERTEX_ATTRIBUTES, trimMat);
+        // Active aero dual wing
+        BoxShapeBuilder.build(trimBuilder, 0, 0.74f, -1.5f, 1.54f, 0.05f, 0.35f);
+        BoxShapeBuilder.build(trimBuilder, -0.55f, 0.52f, -1.5f, 0.06f, 0.38f, 0.12f);
+        BoxShapeBuilder.build(trimBuilder, 0.55f, 0.52f, -1.5f, 0.06f, 0.38f, 0.12f);
+
+        Material wheelMat = new Material(
+                ColorAttribute.createDiffuse(new Color(0.04f, 0.04f, 0.06f, 1.0f)),
+                ColorAttribute.createSpecular(Color.GOLD)
+        );
+        MeshPartBuilder wheelBuilder = modelBuilder.part("wheels", GL20.GL_TRIANGLES, VERTEX_ATTRIBUTES, wheelMat);
+        addFourWheels(wheelBuilder, 0.76f, 0.24f, 1.02f, 1.08f, 0.28f, 0.24f);
+
+        Material lightMat = new Material(
+                ColorAttribute.createDiffuse(glowColor != null ? glowColor : Color.MAGENTA),
+                ColorAttribute.createEmissive(glowColor != null ? glowColor : Color.MAGENTA)
+        );
+        MeshPartBuilder lightBuilder = modelBuilder.part("headlights", GL20.GL_TRIANGLES, VERTEX_ATTRIBUTES, lightMat);
+        BoxShapeBuilder.build(lightBuilder, -0.54f, 0.26f, 1.84f, 0.26f, 0.08f, 0.06f);
+        BoxShapeBuilder.build(lightBuilder, 0.54f, 0.26f, 1.84f, 0.26f, 0.08f, 0.06f);
+
+        Model model = modelBuilder.end();
+        builtModels.add(model);
+        return model;
+    }
+
+    /**
      * Creates a Highway Patrol Police Interceptor with roof LED lightbar and police livery.
      */
     public Model createPatrolCruiserEnemy() {

@@ -76,6 +76,26 @@ public class CarRegistry {
         );
         register(vanguardTitan);
 
+        // Player 4: Shadowblade EX Hypercar
+        CarDefinition shadowbladeEX = new CarDefinition(
+                ModelRegistry.KEY_PLAYER_SHADOWBLADE,
+                "Shadowblade EX",
+                CarDefinition.VehicleType.PLAYER,
+                "Carbon-fiber experimental hypercar. Extreme top speed and track grip engineered for outrunning heavy police roadblocks.",
+                ModelRegistry.KEY_PLAYER_SHADOWBLADE,
+                58.0f,  // Max speed
+                24.5f,  // Acceleration
+                24.0f,  // Handling
+                120.0f, // Health
+                1220.0f,// Mass
+                false,  // Unlocked
+                5000,   // Unlock price
+                new Color(0.6f, 0.15f, 0.9f, 1.0f),
+                new Color(0.12f, 0.12f, 0.16f, 1.0f),
+                new Color(1.0f, 0.0f, 0.8f, 1.0f)
+        );
+        register(shadowbladeEX);
+
         // Enemy 1: State Patrol Pursuit Cruiser
         CarDefinition patrolCruiser = new CarDefinition(
                 ModelRegistry.KEY_ENEMY_PATROL,

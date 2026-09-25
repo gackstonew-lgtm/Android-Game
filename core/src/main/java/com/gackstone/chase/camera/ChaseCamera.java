@@ -77,6 +77,11 @@ public class ChaseCamera implements com.gackstone.chase.core.GameEvents.GameEven
         addShake(0.85f);
     }
 
+    @Override
+    public void onNearMiss(float bonusScore) {
+        addShake(0.22f);
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Public API
     // ──────────────────────────────────────────────────────────────────────────
@@ -103,6 +108,11 @@ public class ChaseCamera implements com.gackstone.chase.core.GameEvents.GameEven
         Vector3 playerPos  = targetPlayer.getPosition();
         float   bankAngle  = targetPlayer.getState().getCurrentBankAngle();
         float   steerInput = targetPlayer.getState().getCurrentSteerAngle();
+        boolean isBoosting = targetPlayer.getState().isBoosting();
+
+        // Dynamic FOV rush when boosting
+        float targetFov = isBoosting ? GameConfig.CAMERA_FOV_BOOST : GameConfig.CAMERA_FOV;
+        camera.fieldOfView = MathUtils.lerp(camera.fieldOfView, targetFov, Math.min(1.0f, delta * 6.0f));
 
         switch (mode) {
             case CHASE:   updateChase(delta, playerPos, steerInput);   break;
